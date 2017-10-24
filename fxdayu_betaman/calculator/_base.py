@@ -51,9 +51,9 @@ def sign2direction(x):
 
 
 class BaseCalculator(object):
-    def __init__(self, trades, accounts, extend=False, freq="D", mode="avg"):
+    def __init__(self, trades, accounts, extend=False, freq="D", dailySumTime=15):
         self._freq = freq
-        self._mode = mode
+        self._dailySumTime = dailySumTime
         self._trades = trades
         self._extend = extend
         if isinstance(accounts, (float, int)):
@@ -98,10 +98,13 @@ class BaseCalculator(object):
     @property
     @memorized_method()
     def entry(self):
-        return pd.DataFrame(self.position).groupby(level=0, group_keys=False).apply(self._cal_entry)
+        return pd.concat([self.position["datetime"],
+                          pd.DataFrame(self.position).groupby(level=0, group_keys=False).apply(self._cal_entry)],axis=1)
+
 
     @memorized_method()
-    def _position_info_detail(self, mode="avg"):
+    # TODO 未考虑反向开仓,未考虑分红派息导致的仓位和持仓成本变化
+    def _position_info_detail(self):
         detail = []
         for ticker, trades in self._trades.groupby("order_book_id"):
             temp = pd.DataFrame(index=trades.index)
@@ -110,30 +113,25 @@ class BaseCalculator(object):
             market_values = []
             position_avx_prices = []
             profits = []
-            market_value = 0
             position_avx_price = 0
             last_volume = 0
             for _, direction, volume in zip(trades.iterrows(), temp["cumsum_quantity"].values,
                                             temp["cumsum_quantity"].values):
-                # TODO 未考虑反向开仓
+
                 _, order = _
                 point_value = getattr(order, "point_value", 1)
-                if mode == "avg":
-                    if last_volume * side2sign(order["side"]) >= 0:
-                        market_value += order["last_quantity"] * order["last_price"] * point_value
-                        profits.append(np.nan)
-                    else:
-                        # 按持仓均价平仓
-                        market_value -= order["last_quantity"] * position_avx_price * point_value
-                        profit = point_value * order["last_quantity"] * side2sign(order["side"]) * (
-                            position_avx_price - order["last_price"])
-                        profits.append(profit)
-                    last_volume = volume
-                    position_avx_price = market_value / abs(volume) / point_value if volume else 0
-                    market_values.append(market_value)
-                    position_avx_prices.append(position_avx_price)
-                elif mode == "fifo":
-                    return  # TODO fifo
+                # 计算证券市值、持仓均价、每笔收益
+                if side2sign(order["side"]) >= 0: # 加仓，更新持仓均价 TODO 分红派息也要更新持仓均价
+                    position_avx_price = (position_avx_price * last_volume + order["last_quantity"] * order["last_price"])/volume
+                    profit = np.nan
+                else: # 减仓、平仓，计算平仓收益
+                    profit = (order["last_quantity"] * (order["last_price"] - position_avx_price))*point_value
+                    if volume == 0: # 平仓，将持仓均价调为0
+                        position_avx_price = 0
+                last_volume = volume
+                market_values.append(order["last_price"] * volume) # 更新市值
+                position_avx_prices.append(position_avx_price) # 更新持仓均价
+                profits.append(profit) # 更新平仓收益
 
             temp["position_id"] = (temp["cumsum_quantity"] == 0).cumsum().shift(1).fillna(0) + 1  # TODO 未考虑反向开仓
             temp["position_id"] = temp["position_id"].astype(int)
@@ -150,8 +148,8 @@ class BaseCalculator(object):
         return result.reindex(index).fillna(method="ffill").dropna()
 
     @memorized_method()
-    def _position_info_detail_by_time(self, mode="avg"):
-        details = pd.concat([self._trades, self._position_info_detail(mode=mode)], axis=1)
+    def _position_info_detail_by_time(self):
+        details = pd.concat([self._trades, self._position_info_detail()], axis=1)
         market_data = self.market_data
         index = sorted(pd.concat([details["datetime"], market_data.reset_index()["datetime"]]).unique())
         fields = ["cumsum_quantity", "pnl", "market_value", "position_side", "avg_price", "order_book_id", "datetime"]
@@ -163,41 +161,41 @@ class BaseCalculator(object):
         return groupby
 
     @memorized_method()
-    def _position_info_detail_by_symbol(self, mode="avg"):
-        return pd.concat([self._trades["order_book_id"], self._position_info_detail(mode=mode)], axis=1) \
+    def _position_info_detail_by_symbol(self):
+        return pd.concat([self._trades[["order_book_id", "datetime"]], self._position_info_detail()], axis=1) \
             .reset_index().set_index(["order_book_id", "order_id"]).sort_index()
 
     @property
     def position_info_detail(self):
-        return self._position_info_detail(mode=self._mode)
+        return self._position_info_detail()
 
     @property
     def position_info_detail_by_symbol(self):
-        return self._position_info_detail_by_symbol(mode=self._mode)
+        return self._position_info_detail_by_symbol()
 
     @property
     def position_info_detail_by_time(self):
-        return self._position_info_detail_by_time(mode=self._mode)
+        return self._position_info_detail_by_time()
 
     @property
     def position(self):
-        return self.position_info_detail_by_symbol["cumsum_quantity"]
+        return self.position_info_detail_by_symbol[["datetime","cumsum_quantity"]]
 
     @property
     def market_value(self):
-        return self.position_info_detail_by_symbol["market_value"]
+        return self.position_info_detail_by_symbol[["datetime","market_value"]]
 
     @property
     def pnl(self):
-        return self.position_info_detail_by_symbol["pnl"]
+        return self.position_info_detail_by_symbol[["datetime","pnl"]]
 
     @property
     def profits(self):
-        return self.position_info_detail_by_symbol["profits"]
+        return self.position_info_detail_by_symbol[["datetime","profits"]]
 
     @property
     def average_price(self):
-        return self.position_info_detail_by_symbol["avg_price"]
+        return self.position_info_detail_by_symbol[["datetime","avg_price"]]
 
     @property
     def pending_position(self):
@@ -210,6 +208,19 @@ class BaseCalculator(object):
     @property
     def market_value_by_time(self):
         return self.position_info_detail_by_time["market_value"]
+
+    @property
+    def daily_market_value(self):
+        market_value_by_time = self.market_value_by_time.unstack()
+        series = market_value_by_time[market_value_by_time.index.hour==self._dailySumTime].stack()
+        series.name = "daily_market_value"
+        return series
+
+    @property
+    def portfolio_value_by_time(self):
+        series = self.market_value_by_time.groupby(level=0).sum()
+        series.name = "portfolio_value"
+        return series
 
     @property
     def position_by_time(self):
@@ -227,9 +238,39 @@ class BaseCalculator(object):
         return df["float_pnl"].groupby(level=0).sum()
 
     @property
-    def net(self):
+    def account_value_by_time(self):
         series = self.float_pnl_by_time + self._account["total_value"]
+        series.name = "account_value"
+        return series
+
+    @property
+    def daily_account_value(self):
+        account_value_by_time = self.account_value_by_time
+        series = account_value_by_time[account_value_by_time.index.hour==self._dailySumTime]
+        series.name = "daily_account_value"
+        return series
+
+    @property
+    def net(self):
+        series = self.account_value_by_time/self._account["total_value"]
         series.name = "net"
+        return series
+
+    @property
+    def cash(self):
+        series = self.account_value_by_time - self.portfolio_value_by_time
+        series.name = "cash"
+        return series
+
+    @property
+    def returns(self):
+        series = self.account_value_by_time.pct_change()
+        series.name = "returns"
+        return series
+
+    def daily_returns(self):
+        series = self.daily_account_value.pct_change()
+        series.name = "daily_returns"
         return series
 
     @property
