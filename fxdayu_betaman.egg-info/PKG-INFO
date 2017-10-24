@@ -1,0 +1,16 @@
+Metadata-Version: 1.1
+Name: fxdayu-betaman
+Version: 0.1.0
+Summary: Trading Analysis Module from fxdayu
+Home-page: https://github.com/xingetouzi/fxdayu-betaman
+Author: BurdenBear
+Author-email: public@fxdayu.com
+License: Apache License v2
+Description-Content-Type: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Programming Language :: Python
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Operating System :: Unix
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
