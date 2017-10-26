@@ -1,11 +1,15 @@
+import os
+import time
 import datetime
 import functools
 import weakref
+from collections import defaultdict
 from enum import Enum
 
 import pandas as pd
 import numpy as np
 from dateutil.parser import parse
+import tushare as ts
 from fxdayu_data import DataAPI
 
 try:
@@ -103,7 +107,7 @@ class BaseCalculator(object):
 
 
     @memorized_method()
-    # TODO 未考虑反向开仓,未考虑分红派息导致的仓位和持仓成本变化
+    # TODO 未考虑反向开仓,未考虑分红派息导致的仓位、市值、和持仓成本变化
     def _position_info_detail(self):
         detail = []
         for ticker, trades in self._trades.groupby("order_book_id"):
@@ -166,6 +170,15 @@ class BaseCalculator(object):
             .reset_index().set_index(["order_book_id", "order_id"]).sort_index()
 
     @property
+    def transactions(self):
+        transactions = self._trades.copy()
+        transactions["amount"] = (transactions["last_quantity"] * side2sign(transactions["side"]))
+        transactions = transactions[["datetime","order_book_id","amount","last_price"]]
+        transactions.rename(columns={"order_book_id":"symbol","last_price":"price"},inplace = True)
+        transactions.set_index("datetime", inplace=True)
+        return transactions
+
+    @property
     def position_info_detail(self):
         return self._position_info_detail()
 
@@ -212,9 +225,19 @@ class BaseCalculator(object):
     @property
     def daily_market_value(self):
         market_value_by_time = self.market_value_by_time.unstack()
-        series = market_value_by_time[market_value_by_time.index.hour==self._dailySumTime].stack()
+        series = market_value_by_time[market_value_by_time.index.hour==self._dailySumTime]
+        series.index = series.index.normalize()
         series.name = "daily_market_value"
-        return series
+        return series.stack()
+
+    @property
+    def daily_mv_df(self):
+        market_value_by_time = self.market_value_by_time.unstack()
+        daily_mv_df = market_value_by_time[market_value_by_time.index.hour==self._dailySumTime]
+        daily_mv_df.index = daily_mv_df.index.normalize()
+        daily_mv_df = pd.concat([daily_mv_df,self.daily_cash],axis=1)
+        daily_mv_df = daily_mv_df.rename(columns={"daily_cash":"cash"})
+        return daily_mv_df
 
     @property
     def portfolio_value_by_time(self):
@@ -223,9 +246,25 @@ class BaseCalculator(object):
         return series
 
     @property
+    def daily_portfolio_value(self):
+        portfolio_value_by_time = self.portfolio_value_by_time
+        series = portfolio_value_by_time[portfolio_value_by_time.index.hour == self._dailySumTime]
+        series.index = series.index.normalize()
+        series.name = "daily_portfolio_value"
+        return series
+
+    @property
     def position_by_time(self):
         series = self.position_info_detail_by_time["cumsum_quantity"]
         return series.loc[series != 0]
+
+    @property
+    def daily_position(self):
+        position_by_time = self.position_by_time.unstack()
+        series = position_by_time[position_by_time.index.hour == self._dailySumTime]
+        series.index = series.index.normalize()
+        series.name = "daily_position"
+        return series.stack()
 
     @property
     def pnl_by_time(self):
@@ -233,9 +272,25 @@ class BaseCalculator(object):
         return df["pnl"].groupby(level=0).sum()
 
     @property
+    def daily_pnl(self):
+        pnl_by_time = self.pnl_by_time
+        series = pnl_by_time[pnl_by_time.index.hour == self._dailySumTime]
+        series.index = series.index.normalize()
+        series.name = "daily_pnl"
+        return series
+
+    @property
     def float_pnl_by_time(self):
         df = self.position_info_detail_by_time
         return df["float_pnl"].groupby(level=0).sum()
+
+    @property
+    def daily_float_pnl(self):
+        float_pnl_by_time = self.float_pnl_by_time
+        series = float_pnl_by_time[float_pnl_by_time.index.hour == self._dailySumTime]
+        series.index = series.index.normalize()
+        series.name = "daily_float_pnl"
+        return series
 
     @property
     def account_value_by_time(self):
@@ -247,6 +302,7 @@ class BaseCalculator(object):
     def daily_account_value(self):
         account_value_by_time = self.account_value_by_time
         series = account_value_by_time[account_value_by_time.index.hour==self._dailySumTime]
+        series.index = series.index.normalize()
         series.name = "daily_account_value"
         return series
 
@@ -257,9 +313,25 @@ class BaseCalculator(object):
         return series
 
     @property
+    def daily_net(self):
+        net = self.net
+        series = net[net.index.hour==self._dailySumTime]
+        series.index = series.index.normalize()
+        series.name = "daily_net"
+        return series
+
+    @property
     def cash(self):
         series = self.account_value_by_time - self.portfolio_value_by_time
         series.name = "cash"
+        return series
+
+    @property
+    def daily_cash(self):
+        cash = self.cash
+        series = cash[cash.index.hour==self._dailySumTime]
+        series.index = series.index.normalize()
+        series.name = "daily_cash"
         return series
 
     @property
@@ -268,6 +340,7 @@ class BaseCalculator(object):
         series.name = "returns"
         return series
 
+    @property
     def daily_returns(self):
         series = self.daily_account_value.pct_change()
         series.name = "daily_returns"
@@ -308,3 +381,67 @@ class BaseCalculator(object):
         series = df.stack()
         series.name = "close"
         return series
+
+    @memorized_method()
+    def benchmark_rets(self, code = "000300.XSHG", isIndex=True):
+        start, end = self.date_range
+        adjust = None
+        if not isIndex:
+            adjust = "before"
+        benchmark = DataAPI.candle(code, freq="D", fields="close", start=start, end=end, adjust=adjust)
+        benchmark_rets = benchmark["close"].pct_change()
+        benchmark_rets.name = "benchmark_rets"
+        return benchmark_rets
+
+    @memorized_method()
+    def market_data_panel(self, freq="D"):
+        start, end = self.date_range
+        df = DataAPI.candle(self.universe, fields=["close","volume"], start=start, end=end,
+                            freq=freq).transpose(2,1,0)
+        df.rename_axis({"close": "price"}, inplace=True)
+        if freq == "D":
+            df.major_axis = df.major_axis.normalize()
+        return df
+
+    @memorized_method()
+    def symbol_sector_map(self, symbols=None):
+        """
+        获取行业分类信息
+        :param symbols: 一组股票代码(list),形式为通用标准(编码.交易所 如["000001.XSHE","600000.XSHG"]),默认为策略的所有历史持有股票
+        :return: 应应的sina的行业分类map。
+        - Example:
+            {'AAPL' : 'Technology'
+             'MSFT' : 'Technology'
+             'CHK' : 'Natural Resources'}
+        """
+        sina_industy_class = None
+        if not os.path.exists('classified.xlsx'):
+            counts = 0
+            dataGET = False
+            while counts < 5 and not dataGET:
+                try:
+                    sina_industy_class = ts.get_industry_classified()
+                    dataGET = True
+                except:
+                    counts += 1
+                    time.sleep(1)
+            if dataGET:
+                sina_industy_class.to_excel('classified.xlsx')
+        else:
+            sina_industy_class = pd.read_excel("classified.xlsx")
+
+        if symbols is None:
+            symbols = self.universe
+        if sina_industy_class is not None:
+            sina_industy_class["code"] = sina_industy_class["code"].astype(int)
+        sina_industy_class.set_index("code",inplace=True)
+        symbol_sector_map = {}
+        for symbol in symbols:
+            code = int(symbol[0:6])
+            try:
+                symbol_sector_map[symbol] = sina_industy_class.loc[code,"c_name"]
+            except:
+                symbol_sector_map[symbol] = "行业未知"
+        return symbol_sector_map
+
+
