@@ -397,6 +397,7 @@ class BaseCalculator(object):
         benchmark = DataAPI.candle(code, freq="D", fields="close", start=start, end=end, adjust=adjust)
         benchmark_rets = benchmark["close"].pct_change()
         benchmark_rets.name = "benchmark_rets"
+        benchmark_rets.index = benchmark_rets.index.normalize()
         return benchmark_rets
 
     @memorized_method()

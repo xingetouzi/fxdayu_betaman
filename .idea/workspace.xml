@@ -3,7 +3,6 @@
   <component name="ChangeListManager">
     <list default="true" id="f58d563d-5a83-4a00-ab4c-e312c8af4194" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py" afterPath="$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py" afterPath="$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -21,8 +20,8 @@
       <file leaf-file-name="test_cal.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/tests/test_cal.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="297">
-              <caret line="17" column="20" lean-forward="false" selection-start-line="17" selection-start-column="5" selection-end-line="17" selection-end-column="20" />
+            <state relative-caret-position="135">
+              <caret line="14" column="23" lean-forward="true" selection-start-line="14" selection-start-column="23" selection-end-line="14" selection-end-column="23" />
               <folding>
                 <element signature="e#0#19#0" expanded="true" />
               </folding>
@@ -30,11 +29,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="_base.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="_base.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-2412">
-              <caret line="237" column="8" lean-forward="false" selection-start-line="237" selection-start-column="8" selection-end-line="237" selection-end-column="8" />
+            <state relative-caret-position="261">
+              <caret line="399" column="63" lean-forward="false" selection-start-line="399" selection-start-column="63" selection-end-line="399" selection-end-column="63" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
               </folding>
@@ -42,7 +41,7 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="analysis.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="analysis.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="396">
@@ -57,8 +56,8 @@
       <file leaf-file-name="extra.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/extra.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-681">
-              <caret line="17" column="63" lean-forward="true" selection-start-line="17" selection-start-column="63" selection-end-line="17" selection-end-column="63" />
+            <state relative-caret-position="291">
+              <caret line="17" column="63" lean-forward="true" selection-start-line="15" selection-start-column="4" selection-end-line="17" selection-end-column="63" />
               <folding>
                 <element signature="e#0#30#0" expanded="true" />
               </folding>
@@ -96,6 +95,7 @@
       <find>daily_mv</find>
       <find>transaction</find>
       <find>STAT_FUNCS_PCT</find>
+      <find>entry</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -131,14 +131,14 @@
         <option value="$PROJECT_DIR$/tests/test_cal.py" />
         <option value="$PROJECT_DIR$/requirements.txt" />
         <option value="$PROJECT_DIR$/VERSION.txt" />
-        <option value="$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py" />
         <option value="$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py" />
+        <option value="$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="43" />
-    <option name="y" value="58" />
+    <option name="x" value="64" />
+    <option name="y" value="52" />
     <option name="width" value="1295" />
     <option name="height" value="716" />
   </component>
@@ -508,7 +508,7 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="43" y="58" width="1295" height="716" extended-state="1" />
+    <frame x="64" y="52" width="1295" height="716" extended-state="1" />
     <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.33937007" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
@@ -663,6 +663,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="81">
           <caret line="342" column="30" lean-forward="true" selection-start-line="342" selection-start-column="30" selection-end-line="342" selection-end-column="30" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -678,6 +679,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-301">
           <caret line="85" column="8" lean-forward="false" selection-start-line="85" selection-start-column="8" selection-end-line="85" selection-end-column="8" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -695,6 +697,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="396">
           <caret line="54" column="26" lean-forward="false" selection-start-line="54" selection-start-column="20" selection-end-line="54" selection-end-column="26" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -730,6 +733,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-113">
           <caret line="603" column="4" lean-forward="false" selection-start-line="603" selection-start-column="4" selection-end-line="603" selection-end-column="4" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -805,7 +809,7 @@
         <state relative-caret-position="48870">
           <caret line="1810" column="39" lean-forward="false" selection-start-line="1810" selection-start-column="39" selection-end-line="1810" selection-end-column="39" />
           <folding>
-            <element signature="e#582#613#0" expanded="true" />
+            <element signature="e#582#613#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -834,41 +838,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/tests/test_cal.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="297">
-          <caret line="17" column="20" lean-forward="false" selection-start-line="17" selection-start-column="5" selection-end-line="17" selection-end-column="20" />
-          <folding>
-            <element signature="e#0#19#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/round_trips.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="192">
           <caret line="19" column="19" lean-forward="true" selection-start-line="19" selection-start-column="19" selection-end-line="19" selection-end-column="19" />
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-2412">
-          <caret line="237" column="8" lean-forward="false" selection-start-line="237" selection-start-column="8" selection-end-line="237" selection-end-column="8" />
-          <folding>
-            <element signature="e#0#9#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/extra.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-681">
-          <caret line="17" column="63" lean-forward="true" selection-start-line="17" selection-start-column="63" selection-end-line="17" selection-end-column="63" />
-          <folding>
-            <element signature="e#0#30#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -878,6 +852,36 @@
           <caret line="41" column="11" lean-forward="false" selection-start-line="41" selection-start-column="11" selection-end-line="41" selection-end-column="11" />
           <folding>
             <element signature="e#20#51#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/extra.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="291">
+          <caret line="17" column="63" lean-forward="true" selection-start-line="15" selection-start-column="4" selection-end-line="17" selection-end-column="63" />
+          <folding>
+            <element signature="e#0#30#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests/test_cal.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="135">
+          <caret line="14" column="23" lean-forward="true" selection-start-line="14" selection-start-column="23" selection-end-line="14" selection-end-column="23" />
+          <folding>
+            <element signature="e#0#19#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="261">
+          <caret line="399" column="63" lean-forward="false" selection-start-line="399" selection-start-column="63" selection-end-line="399" selection-end-column="63" />
+          <folding>
+            <element signature="e#0#9#0" expanded="true" />
           </folding>
         </state>
       </provider>
