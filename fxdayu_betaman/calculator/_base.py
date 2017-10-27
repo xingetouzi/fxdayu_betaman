@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from dateutil.parser import parse
 import tushare as ts
+import pyfolio as pf
 from fxdayu_data import DataAPI
 
 try:
@@ -170,6 +171,7 @@ class BaseCalculator(object):
             .reset_index().set_index(["order_book_id", "order_id"]).sort_index()
 
     @property
+    @memorized_method()
     def transactions(self):
         transactions = self._trades.copy()
         transactions["amount"] = (transactions["last_quantity"] * side2sign(transactions["side"]))
@@ -223,6 +225,7 @@ class BaseCalculator(object):
         return self.position_info_detail_by_time["market_value"]
 
     @property
+    @memorized_method()
     def daily_market_value(self):
         market_value_by_time = self.market_value_by_time.unstack()
         series = market_value_by_time[market_value_by_time.index.hour==self._dailySumTime]
@@ -231,6 +234,7 @@ class BaseCalculator(object):
         return series.stack()
 
     @property
+    @memorized_method()
     def daily_mv_df(self):
         market_value_by_time = self.market_value_by_time.unstack()
         daily_mv_df = market_value_by_time[market_value_by_time.index.hour==self._dailySumTime]
@@ -327,6 +331,7 @@ class BaseCalculator(object):
         return series
 
     @property
+    @memorized_method()
     def daily_cash(self):
         cash = self.cash
         series = cash[cash.index.hour==self._dailySumTime]
@@ -341,6 +346,7 @@ class BaseCalculator(object):
         return series
 
     @property
+    @memorized_method()
     def daily_returns(self):
         series = self.daily_account_value.pct_change()
         series.name = "daily_returns"
@@ -443,5 +449,10 @@ class BaseCalculator(object):
             except:
                 symbol_sector_map[symbol] = "行业未知"
         return symbol_sector_map
+
+    @property
+    @memorized_method()
+    def positions_alloc(self):
+        return pf.pos.get_percent_alloc(self.daily_mv_df)
 
 

@@ -2,9 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f58d563d-5a83-4a00-ab4c-e312c8af4194" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/VERSION.txt" afterPath="$PROJECT_DIR$/VERSION.txt" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/requirements.txt" afterPath="$PROJECT_DIR$/requirements.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py" afterPath="$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py" afterPath="$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -22,8 +21,8 @@
       <file leaf-file-name="test_cal.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/tests/test_cal.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="432">
-              <caret line="16" column="5" lean-forward="false" selection-start-line="16" selection-start-column="5" selection-end-line="16" selection-end-column="5" />
+            <state relative-caret-position="297">
+              <caret line="17" column="20" lean-forward="false" selection-start-line="17" selection-start-column="5" selection-end-line="17" selection-end-column="20" />
               <folding>
                 <element signature="e#0#19#0" expanded="true" />
               </folding>
@@ -34,74 +33,34 @@
       <file leaf-file-name="_base.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="237">
-              <caret line="417" column="31" lean-forward="false" selection-start-line="417" selection-start-column="31" selection-end-line="417" selection-end-column="31" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="round_trips.py" pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/round_trips.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="378">
-              <caret line="14" column="0" lean-forward="false" selection-start-line="14" selection-start-column="0" selection-end-line="22" selection-end-column="44" />
+            <state relative-caret-position="-2412">
+              <caret line="237" column="8" lean-forward="false" selection-start-line="237" selection-start-column="8" selection-end-line="237" selection-end-column="8" />
               <folding>
-                <element signature="e#582#613#0" expanded="true" />
+                <element signature="e#0#9#0" expanded="true" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="tears.py" pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/tears.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="28350">
-              <caret line="1070" column="22" lean-forward="false" selection-start-line="1070" selection-start-column="22" selection-end-line="1070" selection-end-column="22" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="plotting.py" pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/plotting.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="48870">
-              <caret line="1810" column="39" lean-forward="false" selection-start-line="1810" selection-start-column="39" selection-end-line="1810" selection-end-column="39" />
-              <folding>
-                <element signature="e#582#613#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="requirements.txt" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/requirements.txt">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="162">
-              <caret line="6" column="14" lean-forward="false" selection-start-line="6" selection-start-column="14" selection-end-line="6" selection-end-column="14" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="VERSION.txt" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/VERSION.txt">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="0">
-              <caret line="0" column="5" lean-forward="false" selection-start-line="0" selection-start-column="5" selection-end-line="0" selection-end-column="5" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="analysis.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="analysis.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="526">
-              <caret line="854" column="4" lean-forward="false" selection-start-line="854" selection-start-column="4" selection-end-line="854" selection-end-column="4" />
+            <state relative-caret-position="396">
+              <caret line="41" column="11" lean-forward="false" selection-start-line="41" selection-start-column="11" selection-end-line="41" selection-end-column="11" />
               <folding>
                 <element signature="e#20#51#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="extra.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/extra.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-681">
+              <caret line="17" column="63" lean-forward="true" selection-start-line="17" selection-start-column="63" selection-end-line="17" selection-end-column="63" />
+              <folding>
+                <element signature="e#0#30#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -131,10 +90,12 @@
       <find>get_turnover</find>
       <find>down</find>
       <find>daily</find>
-      <find>transaction</find>
       <find>sector</find>
       <find>have_bayesian</find>
       <find>sp</find>
+      <find>daily_mv</find>
+      <find>transaction</find>
+      <find>STAT_FUNCS_PCT</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -167,17 +128,17 @@
         <option value="$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/capacity.py" />
         <option value="$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/round_trips.py" />
         <option value="$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/plotting.py" />
-        <option value="$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py" />
         <option value="$PROJECT_DIR$/tests/test_cal.py" />
-        <option value="$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py" />
         <option value="$PROJECT_DIR$/requirements.txt" />
         <option value="$PROJECT_DIR$/VERSION.txt" />
+        <option value="$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py" />
+        <option value="$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py" />
       </list>
     </option>
   </component>
   <component name="ProjectFrameBounds">
-    <option name="x" value="544" />
-    <option name="y" value="52" />
+    <option name="x" value="43" />
+    <option name="y" value="58" />
     <option name="width" value="1295" />
     <option name="height" value="716" />
   </component>
@@ -235,6 +196,20 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
+              <option name="myItemId" value="tests" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="fxdayu_betaman" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="fxdayu_betaman" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
               <option name="myItemId" value="fxdayu_betaman" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
@@ -263,7 +238,7 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/../../django_projects" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
     <property name="ignore_missing_gitignore" value="true" />
   </component>
@@ -533,10 +508,10 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="544" y="52" width="1295" height="716" extended-state="0" />
+    <frame x="43" y="58" width="1295" height="716" extended-state="1" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.17952757" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.33937007" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32903227" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32903227" sideWeight="0.5021322" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -584,7 +559,7 @@
         <state relative-caret-position="912">
           <caret line="48" column="75" lean-forward="false" selection-start-line="48" selection-start-column="75" selection-end-line="48" selection-end-column="75" />
           <folding>
-            <element signature="e#0#30#0" expanded="false" />
+            <element signature="e#0#30#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -684,16 +659,6 @@
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/tests/test.py" />
-    <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/extra.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1053">
-          <caret line="48" column="66" lean-forward="false" selection-start-line="48" selection-start-column="66" selection-end-line="48" selection-end-column="66" />
-          <folding>
-            <element signature="e#0#30#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/fxdayu_alphaman/selector/admin.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="81">
@@ -794,6 +759,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="113">
           <caret line="33" column="18" lean-forward="true" selection-start-line="33" selection-start-column="18" selection-end-line="33" selection-end-column="18" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -818,29 +784,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/tears.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="28350">
-          <caret line="1070" column="22" lean-forward="false" selection-start-line="1070" selection-start-column="22" selection-end-line="1070" selection-end-column="22" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/warnings.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/round_trips.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="378">
-          <caret line="14" column="0" lean-forward="false" selection-start-line="14" selection-start-column="0" selection-end-line="22" selection-end-column="44" />
-          <folding>
-            <element signature="e#582#613#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -862,34 +810,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/tests/test_cal.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="432">
-          <caret line="16" column="5" lean-forward="false" selection-start-line="16" selection-start-column="5" selection-end-line="16" selection-end-column="5" />
-          <folding>
-            <element signature="e#0#19#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="526">
-          <caret line="854" column="4" lean-forward="false" selection-start-line="854" selection-start-column="4" selection-end-line="854" selection-end-column="4" />
-          <folding>
-            <element signature="e#20#51#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="237">
-          <caret line="417" column="31" lean-forward="false" selection-start-line="417" selection-start-column="31" selection-end-line="417" selection-end-column="31" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/requirements.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="162">
@@ -901,8 +821,64 @@
     <entry file="file://$PROJECT_DIR$/VERSION.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
-          <caret line="0" column="5" lean-forward="false" selection-start-line="0" selection-start-column="5" selection-end-line="0" selection-end-column="5" />
+          <caret line="0" column="5" lean-forward="true" selection-start-line="0" selection-start-column="5" selection-end-line="0" selection-end-column="5" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/tears.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1326">
+          <caret line="1070" column="22" lean-forward="false" selection-start-line="1070" selection-start-column="22" selection-end-line="1070" selection-end-column="22" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests/test_cal.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="297">
+          <caret line="17" column="20" lean-forward="false" selection-start-line="17" selection-start-column="5" selection-end-line="17" selection-end-column="20" />
+          <folding>
+            <element signature="e#0#19#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/anaconda3/envs/IIA/lib/python3.6/site-packages/pyfolio/round_trips.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="192">
+          <caret line="19" column="19" lean-forward="true" selection-start-line="19" selection-start-column="19" selection-end-line="19" selection-end-column="19" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-2412">
+          <caret line="237" column="8" lean-forward="false" selection-start-line="237" selection-start-column="8" selection-end-line="237" selection-end-column="8" />
+          <folding>
+            <element signature="e#0#9#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/extra.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-681">
+          <caret line="17" column="63" lean-forward="true" selection-start-line="17" selection-start-column="63" selection-end-line="17" selection-end-column="63" />
+          <folding>
+            <element signature="e#0#30#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/analysis.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="396">
+          <caret line="41" column="11" lean-forward="false" selection-start-line="41" selection-start-column="11" selection-end-line="41" selection-end-column="11" />
+          <folding>
+            <element signature="e#20#51#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
