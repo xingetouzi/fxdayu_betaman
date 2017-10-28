@@ -326,7 +326,7 @@ class BaseCalculator(object):
 
     @property
     def cash(self):
-        series = self.account_value_by_time - self.portfolio_value_by_time
+        series = self.account_value_by_time - self.security_value_by_time
         series.name = "cash"
         return series
 

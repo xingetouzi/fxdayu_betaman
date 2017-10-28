@@ -32,8 +32,8 @@
       <file leaf-file-name="_base.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="396">
-              <caret line="401" column="29" lean-forward="false" selection-start-line="401" selection-start-column="29" selection-end-line="401" selection-end-column="29" />
+            <state relative-caret-position="126">
+              <caret line="326" column="13" lean-forward="true" selection-start-line="326" selection-start-column="13" selection-end-line="326" selection-end-column="13" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
               </folding>
@@ -508,8 +508,8 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="64" y="52" width="1295" height="716" extended-state="1" />
-    <editor active="false" />
+    <frame x="64" y="52" width="1295" height="716" extended-state="0" />
+    <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.33937007" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32903227" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
@@ -878,8 +878,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/fxdayu_betaman/calculator/_base.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="396">
-          <caret line="401" column="29" lean-forward="false" selection-start-line="401" selection-start-column="29" selection-end-line="401" selection-end-column="29" />
+        <state relative-caret-position="126">
+          <caret line="326" column="13" lean-forward="true" selection-start-line="326" selection-start-column="13" selection-end-line="326" selection-end-column="13" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
           </folding>
