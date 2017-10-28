@@ -71,7 +71,6 @@ class Performance(BaseCalculator):
                 returns,
                 'yearly'))
         ann_ret_df.columns=["annual_returns"]
-        ann_ret_df.loc["mean"] = ann_ret_df["annual_returns"].mean()
         return ann_ret_df
 
     # 累计收益曲线
