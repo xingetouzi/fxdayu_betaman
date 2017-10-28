@@ -389,15 +389,16 @@ class BaseCalculator(object):
         return series
 
     @memorized_method()
-    def benchmark_rets(self, code = "000300.XSHG", isIndex=True):
+    def benchmark_rets(self, code="000300.XSHG", freq="D", isIndex=True):
         start, end = self.date_range
         adjust = None
         if not isIndex:
             adjust = "before"
-        benchmark = DataAPI.candle(code, freq="D", fields="close", start=start, end=end, adjust=adjust)
+        benchmark = DataAPI.candle(code, freq=freq, fields="close", start=start, end=end, adjust=adjust)
         benchmark_rets = benchmark["close"].pct_change()
         benchmark_rets.name = "benchmark_rets"
-        benchmark_rets.index = benchmark_rets.index.normalize()
+        if freq == "D":
+            benchmark_rets.index = benchmark_rets.index.normalize()
         return benchmark_rets
 
     @memorized_method()
