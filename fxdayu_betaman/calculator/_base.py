@@ -244,17 +244,17 @@ class BaseCalculator(object):
         return daily_mv_df
 
     @property
-    def portfolio_value_by_time(self):
+    def security_value_by_time(self):
         series = self.market_value_by_time.groupby(level=0).sum()
-        series.name = "portfolio_value"
+        series.name = "security_value"
         return series
 
     @property
-    def daily_portfolio_value(self):
-        portfolio_value_by_time = self.portfolio_value_by_time
-        series = portfolio_value_by_time[portfolio_value_by_time.index.hour == self._dailySumTime]
+    def daily_security_value(self):
+        security_value_by_time = self.security_value_by_time
+        series = security_value_by_time[security_value_by_time.index.hour == self._dailySumTime]
         series.index = series.index.normalize()
-        series.name = "daily_portfolio_value"
+        series.name = "daily_security_value"
         return series
 
     @property
