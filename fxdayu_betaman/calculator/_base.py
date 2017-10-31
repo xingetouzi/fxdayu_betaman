@@ -404,9 +404,8 @@ class BaseCalculator(object):
     @memorized_method()
     def market_data_panel(self, freq="D"):
         start, end = self.date_range
-        df = DataAPI.candle(self.universe, fields=["close","volume"], start=start, end=end,
+        df = DataAPI.candle(self.universe, start=start, end=end,
                             freq=freq).transpose(2,1,0)
-        df.rename_axis({"close": "price"}, inplace=True)
         if freq == "D":
             df.major_axis = df.major_axis.normalize()
         return df
