@@ -244,17 +244,17 @@ class BaseCalculator(object):
         return daily_mv_df
 
     @property
-    def portfolio_value_by_time(self):
+    def security_value_by_time(self):
         series = self.market_value_by_time.groupby(level=0).sum()
-        series.name = "portfolio_value"
+        series.name = "security_value"
         return series
 
     @property
-    def daily_portfolio_value(self):
-        portfolio_value_by_time = self.portfolio_value_by_time
-        series = portfolio_value_by_time[portfolio_value_by_time.index.hour == self._dailySumTime]
+    def daily_security_value(self):
+        security_value_by_time = self.security_value_by_time
+        series = security_value_by_time[security_value_by_time.index.hour == self._dailySumTime]
         series.index = series.index.normalize()
-        series.name = "daily_portfolio_value"
+        series.name = "daily_security_value"
         return series
 
     @property
@@ -326,7 +326,7 @@ class BaseCalculator(object):
 
     @property
     def cash(self):
-        series = self.account_value_by_time - self.portfolio_value_by_time
+        series = self.account_value_by_time - self.security_value_by_time
         series.name = "cash"
         return series
 
@@ -390,15 +390,16 @@ class BaseCalculator(object):
         return series
 
     @memorized_method()
-    def benchmark_rets(self, code="000300.XSHG", isIndex=True):
+    def benchmark_rets(self, code="000300.XSHG", freq="D", isIndex=True):
         start, end = self.date_range
         adjust = None
         if not isIndex:
             adjust = "before"
-        benchmark = DataAPI.candle(code, freq="D", fields="close", start=start, end=end, adjust=adjust)
+        benchmark = DataAPI.candle(code, freq=freq, fields="close", start=start, end=end, adjust=adjust)
         benchmark_rets = benchmark["close"].pct_change()
         benchmark_rets.name = "benchmark_rets"
-        benchmark_rets.index = benchmark_rets.index.normalize()
+        if freq == "D":
+            benchmark_rets.index = benchmark_rets.index.normalize()
         return benchmark_rets
 
     @memorized_method()
