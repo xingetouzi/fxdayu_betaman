@@ -407,7 +407,6 @@ class BaseCalculator(object):
         start, end = self.date_range
         df = DataAPI.candle(self.universe, start=start, end=end,
                             freq=freq).transpose(2,1,0)
-        df.rename_axis({"close": "price"}, inplace=True)
         if freq == "D":
             df.major_axis = df.major_axis.normalize()
         return df
