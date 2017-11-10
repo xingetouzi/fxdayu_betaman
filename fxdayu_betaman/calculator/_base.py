@@ -120,8 +120,7 @@ class BaseCalculator(object):
             profits = []
             position_avx_price = 0
             last_volume = 0
-            for _, direction, volume in zip(trades.iterrows(), temp["cumsum_quantity"].values,
-                                            temp["cumsum_quantity"].values):
+            for _, volume in zip(trades.iterrows(), temp["cumsum_quantity"].values):
 
                 _, order = _
                 point_value = getattr(order, "point_value", 1)
@@ -132,8 +131,8 @@ class BaseCalculator(object):
                     profit = np.nan
                 else:  # 减仓、平仓，计算平仓收益
                     profit = (order["last_quantity"] * (order["last_price"] - position_avx_price)) * point_value
-                    if volume == 0:  # 平仓，将持仓均价调为0
-                        position_avx_price = 0
+                if volume == 0:  # 平仓，将持仓均价调为0
+                    position_avx_price = 0
                 last_volume = volume
                 market_values.append(order["last_price"] * volume)  # 更新市值
                 position_avx_prices.append(position_avx_price)  # 更新持仓均价
