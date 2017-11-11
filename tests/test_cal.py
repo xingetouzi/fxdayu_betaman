@@ -13,7 +13,8 @@ if __name__ == "__main__":
     #daily_returns = calculator.daily_returns
     #returns = daily_returns
     #b_r = calculator.benchmark_rets()
-    #positions = calculator.daily_mv_df
+    # positions = calculator.daily_mv_df
+    # print(positions)
     #transactions = calculator.transactions
     #positions_alloc = pf.pos.get_percent_alloc(positions)
     #symbol_sector_map = calculator.symbol_sector_map()
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     # print(calculator.daily_market_value)
     #start = pd.Timestamp("2013-03-12 15:00:00")
     #end = pd.Timestamp("2013-03-15 15:00:00")
-    # print(calculator.position_info_detail_by_time.loc[start:end])
+    print(calculator.position_info_detail_by_time)
     # print(calculator.market_value_by_time)
     # print(calculator.account_value_by_time)
     # print(calculator.portfolio_value_by_time)

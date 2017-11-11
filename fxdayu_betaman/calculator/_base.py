@@ -105,8 +105,8 @@ class BaseCalculator(object):
     @memorized_method()
     def entry(self):
         return pd.concat([self.position["datetime"],
-                          pd.DataFrame(self.position).groupby(level=0, group_keys=False).apply(self._cal_entry)],axis=1)
-
+                          pd.DataFrame(self.position).groupby(level=0, group_keys=False).apply(self._cal_entry)],
+                         axis=1)
 
     @memorized_method()
     # TODO 未考虑反向开仓,未考虑分红派息导致的仓位、市值、和持仓成本变化
@@ -127,17 +127,18 @@ class BaseCalculator(object):
                 _, order = _
                 point_value = getattr(order, "point_value", 1)
                 # 计算证券市值、持仓均价、每笔收益
-                if side2sign(order["side"]) >= 0: # 加仓，更新持仓均价 TODO 分红派息也要更新持仓均价
-                    position_avx_price = (position_avx_price * last_volume + order["last_quantity"] * order["last_price"])/volume
+                if side2sign(order["side"]) >= 0:  # 加仓，更新持仓均价 TODO 分红派息也要更新持仓均价
+                    position_avx_price = (position_avx_price * last_volume + order["last_quantity"] * order[
+                        "last_price"]) / volume
                     profit = np.nan
-                else: # 减仓、平仓，计算平仓收益
-                    profit = (order["last_quantity"] * (order["last_price"] - position_avx_price))*point_value
-                    if volume == 0: # 平仓，将持仓均价调为0
+                else:  # 减仓、平仓，计算平仓收益
+                    profit = (order["last_quantity"] * (order["last_price"] - position_avx_price)) * point_value
+                    if volume == 0:  # 平仓，将持仓均价调为0
                         position_avx_price = 0
                 last_volume = volume
-                market_values.append(order["last_price"] * volume) # 更新市值
-                position_avx_prices.append(position_avx_price) # 更新持仓均价
-                profits.append(profit) # 更新平仓收益
+                market_values.append(order["last_price"] * volume)  # 更新市值
+                position_avx_prices.append(position_avx_price)  # 更新持仓均价
+                profits.append(profit)  # 更新平仓收益
 
             temp["position_id"] = (temp["cumsum_quantity"] == 0).cumsum().shift(1).fillna(0) + 1  # TODO 未考虑反向开仓
             temp["position_id"] = temp["position_id"].astype(int)
@@ -150,7 +151,9 @@ class BaseCalculator(object):
 
     @staticmethod
     def _concat_market_data(df, index=None, market_data=None):
-        result = pd.concat([df.drop("order_book_id", axis=1).set_index("datetime"), market_data.loc[df.name]], axis=1)
+        df1 = df.drop("order_book_id", axis=1).set_index("datetime").groupby(level=0).last()
+        df2 = market_data.loc[df.name]
+        result = pd.concat([df1, df2], axis=1)
         return result.reindex(index).fillna(method="ffill").dropna()
 
     @memorized_method()
@@ -176,8 +179,8 @@ class BaseCalculator(object):
     def transactions(self):
         transactions = self._trades.copy()
         transactions["amount"] = (transactions["last_quantity"] * side2sign(transactions["side"]))
-        transactions = transactions[["datetime","order_book_id","amount","last_price"]]
-        transactions.rename(columns={"order_book_id":"symbol","last_price":"price"},inplace = True)
+        transactions = transactions[["datetime", "order_book_id", "amount", "last_price"]]
+        transactions.rename(columns={"order_book_id": "symbol", "last_price": "price"}, inplace=True)
         transactions.set_index("datetime", inplace=True)
         return transactions
 
@@ -195,23 +198,23 @@ class BaseCalculator(object):
 
     @property
     def position(self):
-        return self.position_info_detail_by_symbol[["datetime","cumsum_quantity"]]
+        return self.position_info_detail_by_symbol[["datetime", "cumsum_quantity"]]
 
     @property
     def market_value(self):
-        return self.position_info_detail_by_symbol[["datetime","market_value"]]
+        return self.position_info_detail_by_symbol[["datetime", "market_value"]]
 
     @property
     def pnl(self):
-        return self.position_info_detail_by_symbol[["datetime","pnl"]]
+        return self.position_info_detail_by_symbol[["datetime", "pnl"]]
 
     @property
     def profits(self):
-        return self.position_info_detail_by_symbol[["datetime","profits"]]
+        return self.position_info_detail_by_symbol[["datetime", "profits"]]
 
     @property
     def average_price(self):
-        return self.position_info_detail_by_symbol[["datetime","avg_price"]]
+        return self.position_info_detail_by_symbol[["datetime", "avg_price"]]
 
     @property
     def pending_position(self):
@@ -229,7 +232,7 @@ class BaseCalculator(object):
     @memorized_method()
     def daily_market_value(self):
         market_value_by_time = self.market_value_by_time.unstack()
-        series = market_value_by_time[market_value_by_time.index.hour==self._dailySumTime]
+        series = market_value_by_time[market_value_by_time.index.hour == self._dailySumTime]
         series.index = series.index.normalize()
         series.name = "daily_market_value"
         return series.stack()
@@ -238,10 +241,10 @@ class BaseCalculator(object):
     @memorized_method()
     def daily_mv_df(self):
         market_value_by_time = self.market_value_by_time.unstack()
-        daily_mv_df = market_value_by_time[market_value_by_time.index.hour==self._dailySumTime]
+        daily_mv_df = market_value_by_time[market_value_by_time.index.hour == self._dailySumTime]
         daily_mv_df.index = daily_mv_df.index.normalize()
-        daily_mv_df = pd.concat([daily_mv_df,self.daily_cash],axis=1)
-        daily_mv_df = daily_mv_df.rename(columns={"daily_cash":"cash"})
+        daily_mv_df = pd.concat([daily_mv_df, self.daily_cash], axis=1)
+        daily_mv_df = daily_mv_df.rename(columns={"daily_cash": "cash"})
         return daily_mv_df
 
     @property
@@ -306,21 +309,21 @@ class BaseCalculator(object):
     @property
     def daily_account_value(self):
         account_value_by_time = self.account_value_by_time
-        series = account_value_by_time[account_value_by_time.index.hour==self._dailySumTime]
+        series = account_value_by_time[account_value_by_time.index.hour == self._dailySumTime]
         series.index = series.index.normalize()
         series.name = "daily_account_value"
         return series
 
     @property
     def net(self):
-        series = self.account_value_by_time/self._account["total_value"]
+        series = self.account_value_by_time / self._account["total_value"]
         series.name = "net"
         return series
 
     @property
     def daily_net(self):
         net = self.net
-        series = net[net.index.hour==self._dailySumTime]
+        series = net[net.index.hour == self._dailySumTime]
         series.index = series.index.normalize()
         series.name = "daily_net"
         return series
@@ -335,7 +338,7 @@ class BaseCalculator(object):
     @memorized_method()
     def daily_cash(self):
         cash = self.cash
-        series = cash[cash.index.hour==self._dailySumTime]
+        series = cash[cash.index.hour == self._dailySumTime]
         series.index = series.index.normalize()
         series.name = "daily_cash"
         return series
@@ -350,6 +353,8 @@ class BaseCalculator(object):
     @memorized_method()
     def daily_returns(self):
         series = self.daily_account_value.pct_change()
+        if len(series):
+            series[0] = self.daily_account_value[0] / self._account["total_value"] - 1
         series.name = "daily_returns"
         return series
 
@@ -407,7 +412,7 @@ class BaseCalculator(object):
     def market_data_panel(self, freq="D"):
         start, end = self.date_range
         df = DataAPI.candle(self.universe, start=start, end=end,
-                            freq=freq).transpose(2,1,0)
+                            freq=freq).transpose(2, 1, 0)
         if freq == "D":
             df.major_axis = df.major_axis.normalize()
         return df
@@ -443,12 +448,12 @@ class BaseCalculator(object):
             symbols = self.universe
         if sina_industy_class is not None:
             sina_industy_class["code"] = sina_industy_class["code"].astype(int)
-        sina_industy_class.set_index("code",inplace=True)
+        sina_industy_class.set_index("code", inplace=True)
         symbol_sector_map = {}
         for symbol in symbols:
             code = int(symbol[0:6])
             try:
-                symbol_sector_map[symbol] = sina_industy_class.loc[code,"c_name"]
+                symbol_sector_map[symbol] = sina_industy_class.loc[code, "c_name"]
             except:
                 symbol_sector_map[symbol] = "行业未知"
         return symbol_sector_map
@@ -457,5 +462,3 @@ class BaseCalculator(object):
     @memorized_method()
     def positions_alloc(self):
         return pf.pos.get_percent_alloc(self.daily_mv_df)
-
-
