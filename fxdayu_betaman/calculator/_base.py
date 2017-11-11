@@ -69,11 +69,12 @@ class BaseCalculator(object):
         self._normalize_data()
 
     def _normalize_data(self):
-        self._trades["datetime"] = self._trades["datetime"].astype("datetime64[ns]")
-        self._trades = self._trades.sort_values(by="datetime")
-        self._trades.index = np.arange(len(self._trades))
-        self._trades.index.name = "order_id"
-        self._trades = self._trades.drop("order_id", axis=1, errors="ignore")
+        if len(self._trades):
+            self._trades["datetime"] = self._trades["datetime"].astype("datetime64[ns]")
+            self._trades = self._trades.sort_values(by="datetime")
+            self._trades.index = np.arange(len(self._trades))
+            self._trades.index.name = "order_id"
+            self._trades = self._trades.drop("order_id", axis=1, errors="ignore")
 
     def _init_default_account(self, init_value):
         return {
