@@ -1,3 +1,4 @@
 from ._base import *
+from .analysis import *
 
-__all__ = ["BaseCalculator"]
+__all__ = ["BaseCalculator","Performance"]
