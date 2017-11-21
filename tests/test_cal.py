@@ -1,15 +1,16 @@
 import pandas as pd
-from fxdayu_betaman.calculator import BaseCalculator
-from fxdayu_betaman.loader import FileLoader
+#from fxdayu_betaman.calculator import BaseCalculator
+from fxdayu_betaman.fxdayu_betaman.loader import FileLoader
 import pyfolio as pf
 import matplotlib.pyplot as plt
 from datetime import datetime
-from fxdayu_betaman.calculator import analysis
+#from fxdayu_betaman.calculator import analysis
 
 if __name__ == "__main__":
     pd.set_option("display.width", 160)
     df = FileLoader("test.xlsx").load()
-    calculator = BaseCalculator(df, 1000000)
+    print(df)
+    #calculator = BaseCalculator(df, 1000000)
     #daily_returns = calculator.daily_returns
     #returns = daily_returns
     #b_r = calculator.benchmark_rets()
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     # print(calculator.daily_market_value)
     #start = pd.Timestamp("2013-03-12 15:00:00")
     #end = pd.Timestamp("2013-03-15 15:00:00")
-    print(calculator.position_info_detail_by_time)
+    #print(calculator.position_info_detail_by_time)
     # print(calculator.market_value_by_time)
     # print(calculator.account_value_by_time)
     # print(calculator.portfolio_value_by_time)
