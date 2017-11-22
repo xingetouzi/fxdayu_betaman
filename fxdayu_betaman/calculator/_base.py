@@ -18,6 +18,8 @@ try:
 except ImportError:
     from fastcache import lru_cache
 
+from .utils import SimpleFactorStore, DividendStore
+
 
 def memorized_method(*lru_args, **lru_kwargs):
     def decorator(func):
@@ -67,6 +69,8 @@ class BaseCalculator(object):
             self._accounts = accounts
         self._account = self._accounts["STOCK"]
         self._normalize_data()
+        self._split = SimpleFactorStore(os.path.join(os.environ['HOMEPATH'], '.rqalpha\\bundle\split_factor.bcolz')) # TODO
+        self._dividends = DividendStore(os.path.join(os.environ['HOMEPATH'], '.rqalpha\\bundle\original_dividends.bcolz')) # TODO
 
     def _normalize_data(self):
         if len(self._trades):
@@ -108,45 +112,73 @@ class BaseCalculator(object):
                           pd.DataFrame(self.position).groupby(level=0, group_keys=False).apply(self._cal_entry)],
                          axis=1)
 
+    def _reform_stock_trades(self, code, trades):
+        # 给股票的交割单加上分红送股的日子
+        trades = trades.reset_index().set_index('datetime')
+        trades.index = pd.to_datetime(trades.index)
+        start_date = trades.index[0]
+
+        last_quan = trades.pop('last_quantity')
+        modified_quant = last_quan.append(
+            pd.Series(self._split.get_factors(code)['split_factor'],
+                index=pd.to_datetime(self._split.get_factors(code)['ex_date'], format='%Y%m%d000000')))
+        last_price = trades.pop('last_price')
+        modified_price = last_price.append(
+            pd.Series(self._dividends.get_dividend(code)['dividend_cash_before_tax'],
+                index=pd.to_datetime(self._dividends.get_dividend(code)['ex_dividend_date'], format='%Y%m%d')))
+
+        return pd.concat([trades, modified_quant.rename('last_quantity'), modified_price.rename('last_price')],
+                         axis=1).sort_index()[start_date:]
+
+    @staticmethod
+    def _trades_analyze(trades):
+        position_avg_price = 0
+        holding_position = 0
+
+        for _, order in trades.iterrows():
+            # 这里的计算可能会发现问题
+            point_value = getattr(order, "point_value", 1)
+            if ~np.isnan(order['order_id']):
+
+                direction = side2sign(order["side"])
+                profit = order["last_quantity"] * (order["last_price"] - position_avg_price) * point_value * \
+                         (-direction) if direction * holding_position <0 else np.nan
+
+                overall_cost = position_avg_price * holding_position + order["last_quantity"] * order["last_price"] \
+                    if direction * holding_position >= 0 else 0
+
+                holding_position += order['last_quantity'] * direction
+                #print(overall_cost, holding_position)
+                position_avg_price = overall_cost / holding_position if overall_cost != 0 else (
+                    0 if holding_position == 0 else position_avg_price)
+
+                market_value = order["last_price"] * holding_position
+
+                yield order['order_id'], holding_position, market_value, position_avg_price, profit, order['transaction_cost']
+            else:
+                if ~np.isnan(order['last_price']):
+                    position_avg_price -= order['last_quantity'] / 10  # 除非lot不是10
+                if ~np.isnan(order['last_quantity']):
+                    position_avg_price = position_avg_price / order['last_quantity']
+                    holding_position = holding_position * order['last_quantity']
+
     @memorized_method()
     # TODO 未考虑反向开仓,未考虑分红派息导致的仓位、市值、和持仓成本变化
     def _position_info_detail(self):
         detail = []
         for ticker, trades in self._trades.groupby("order_book_id"):
-            temp = pd.DataFrame(index=trades.index)
-            temp["cumsum_quantity"] = (trades["last_quantity"] * side2sign(trades["side"])).cumsum()
-            temp["position_side"] = (temp["cumsum_quantity"] >= 0).apply(sign2direction)
-            market_values = []
-            position_avx_prices = []
-            profits = []
-            position_avx_price = 0
-            last_volume = 0
-            for _, direction, volume in zip(trades.iterrows(), temp["cumsum_quantity"].values,
-                                            temp["cumsum_quantity"].values):
-
-                _, order = _
-                point_value = getattr(order, "point_value", 1)
-                # 计算证券市值、持仓均价、每笔收益
-                if side2sign(order["side"]) >= 0:  # 加仓，更新持仓均价 TODO 分红派息也要更新持仓均价
-                    position_avx_price = (position_avx_price * last_volume + order["last_quantity"] * order[
-                        "last_price"]) / volume
-                    profit = np.nan
-                else:  # 减仓、平仓，计算平仓收益
-                    profit = (order["last_quantity"] * (order["last_price"] - position_avx_price)) * point_value
-                    if volume == 0:  # 平仓，将持仓均价调为0
-                        position_avx_price = 0
-                last_volume = volume
-                market_values.append(order["last_price"] * volume)  # 更新市值
-                position_avx_prices.append(position_avx_price)  # 更新持仓均价
-                profits.append(profit)  # 更新平仓收益
+            if ticker in self._split._index:
+                trades = self._reform_stock_trades(ticker, trades)
+            # order_id cumsum_quantity Xposition_side  position_id  market_value  avg_price  profits  pnl
+            temp = pd.DataFrame.from_records(self._trades_analyze(trades),
+                 columns=['order_id', 'cumsum_quantity', 'market_value', 'avg_price', 'profit', 'transaction_cost'])
 
             temp["position_id"] = (temp["cumsum_quantity"] == 0).cumsum().shift(1).fillna(0) + 1  # TODO 未考虑反向开仓
             temp["position_id"] = temp["position_id"].astype(int)
-            temp["market_value"] = market_values
-            temp["avg_price"] = position_avx_prices
-            temp["profits"] = profits
-            temp["pnl"] = temp["profits"].fillna(0).cumsum() - trades["transaction_cost"].cumsum()
-            detail.append(temp)
+            temp["position_side"] = (temp["cumsum_quantity"] >= 0).apply(sign2direction)
+            temp["pnl"] = temp["profit"].cumsum() - temp["transaction_cost"].cumsum()
+            detail.append(temp.set_index('order_id'))
+
         return pd.concat(detail, axis=0).sort_index()
 
     @staticmethod
