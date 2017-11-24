@@ -1,15 +1,12 @@
 import os
-import time
 import datetime
 import functools
 import weakref
-from collections import defaultdict
 from enum import Enum
 
 import pandas as pd
 import numpy as np
 from dateutil.parser import parse
-import tushare as ts
 import pyfolio as pf
 from fxdayu_data import DataAPI
 
