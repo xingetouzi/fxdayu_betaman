@@ -74,7 +74,8 @@ class BaseCalculator(object):
         self._endSumDate = endSumDate
         if isinstance(self._endSumDate, str):
             self._endSumDate = parse(self._endSumDate)
-        self._endSumDate = self._endSumDate.replace(hour=23, minute=59, second=59)
+        if self._endSumDate:
+            self._endSumDate = self._endSumDate.replace(hour=23, minute=59, second=59)
         self._trades = trades
         self._extend = extend
         if isinstance(accounts, (float, int)):
