@@ -32,10 +32,18 @@ class FileLoader(AbstractLoader):
             self._path = path
 
     def load_csv(self):
-        return pd.read_csv(str(self._path))
+        try:
+            data = pd.read_csv(str(self._path), encoding="gbk")
+        except:
+            data = pd.read_csv(str(self._path),encoding="utf-8")
+        return data
 
     def load_excel(self):
-        return pd.read_excel(str(self._path))
+        try:
+            data = pd.read_excel(str(self._path), encoding="gbk")
+        except:
+            data = pd.read_excel(str(self._path),encoding="utf-8")
+        return data
 
     def load(self):
         if not self._type:
