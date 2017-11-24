@@ -483,32 +483,14 @@ class BaseCalculator(object):
              'MSFT' : 'Technology'
              'CHK' : 'Natural Resources'}
         """
-        sina_industy_class = None
-        if not os.path.exists('classified.xlsx'):
-            counts = 0
-            dataGET = False
-            while counts < 5 and not dataGET:
-                try:
-                    sina_industy_class = ts.get_industry_classified()
-                    dataGET = True
-                except:
-                    counts += 1
-                    time.sleep(1)
-            if dataGET:
-                sina_industy_class.to_excel('classified.xlsx')
-        else:
-            sina_industy_class = pd.read_excel("classified.xlsx")
-
         if symbols is None:
             symbols = self.universe
-        if sina_industy_class is not None:
-            sina_industy_class["code"] = sina_industy_class["code"].astype(int)
+        sina_industy_class = DataAPI.info.classification()
         sina_industy_class.set_index("code", inplace=True)
         symbol_sector_map = {}
         for symbol in symbols:
-            code = int(symbol[0:6])
             try:
-                symbol_sector_map[symbol] = sina_industy_class.loc[code, "c_name"]
+                symbol_sector_map[symbol] = sina_industy_class.loc[symbol, "classification"]
             except:
                 symbol_sector_map[symbol] = "行业未知"
         return symbol_sector_map

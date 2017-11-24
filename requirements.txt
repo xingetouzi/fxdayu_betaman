@@ -1,8 +1,7 @@
 pandas
 numpy
 xlrd
-fxdayu-data>=0.1.11
+fxdayu-data>=0.2.6
 scipy>=0.19.0
 empyrical>=0.3.0
 pyfolio>=0.7.0
-tushare>=0.8.8
