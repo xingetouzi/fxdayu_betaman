@@ -58,9 +58,23 @@ def sign2direction(x):
 
 
 class BaseCalculator(object):
-    def __init__(self, trades, accounts, extend=False, freq="D", dailySumTime=15):
+    def __init__(self,
+                 trades,
+                 accounts,
+                 extend=False,
+                 freq="D",
+                 dailySumTime=15,
+                 startSumDate=None,
+                 endSumDate=None):
         self._freq = freq
         self._dailySumTime = dailySumTime
+        self._startSumDate = startSumDate
+        if isinstance(self._startSumDate, str):
+            self._startSumDate = parse(self._startSumDate)
+        self._endSumDate = endSumDate
+        if isinstance(self._endSumDate, str):
+            self._endSumDate = parse(self._endSumDate)
+        self._endSumDate = self._endSumDate.replace(hour=23, minute=59, second=59)
         self._trades = trades
         self._extend = extend
         if isinstance(accounts, (float, int)):
@@ -76,6 +90,10 @@ class BaseCalculator(object):
         if len(self._trades):
             self._trades["datetime"] = self._trades["datetime"].astype("datetime64[ns]")
             self._trades = self._trades.sort_values(by="datetime")
+            if self._endSumDate:
+                self._trades = self._trades[self._trades["datetime"]<=self._endSumDate]
+            if self._startSumDate:
+                self._trades = self._trades[self._trades["datetime"]>=self._startSumDate]
             self._trades.index = np.arange(len(self._trades))
             self._trades.index.name = "order_id"
             self._trades = self._trades.drop("order_id", axis=1, errors="ignore")
@@ -398,16 +416,20 @@ class BaseCalculator(object):
             start = dt.iloc[0].to_pydatetime()
         elif dt.dtype == np.dtype.str:
             start = parse(self._trades["datetime"].iloc[0]).date()
-        if len(self.pending_position) and self._extend:
-            end = datetime.datetime.now()
-        else:
-            dt = self._trades["datetime"]
-            if "datetime" in str(dt.dtype):
-                end = dt.iloc[-1].to_pydatetime()
-            elif dt.dtype == np.dtype.str:
-                end = parse(self._trades["datetime"].iloc[-1]).date()
         start -= datetime.timedelta(days=1)
-        end += datetime.timedelta(days=1)
+
+        if self._endSumDate is None:
+            if len(self.pending_position) and self._extend:
+                end = datetime.datetime.now()
+            else:
+                dt = self._trades["datetime"]
+                if "datetime" in str(dt.dtype):
+                    end = dt.iloc[-1].to_pydatetime()
+                elif dt.dtype == np.dtype.str:
+                    end = parse(self._trades["datetime"].iloc[-1]).date()
+            end += datetime.timedelta(days=1)
+        else:
+            end = self._endSumDate
         return start, end
 
     @property
