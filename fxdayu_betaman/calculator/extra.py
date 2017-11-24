@@ -42,7 +42,7 @@ class GuoJinCalculator(BaseCalculator):
         return temp
 
     def get_risk_exp(self):
-        series = self.net.resample("D").last().dropna()
+        series = self.net.resample("D").last().dropna() * self._account["total_value"]
         series.name = "RiskExp"
         series.index.name = "Date"
         df = series.reset_index()
