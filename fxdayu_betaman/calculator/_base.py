@@ -80,8 +80,7 @@ class BaseCalculator(object):
             self._accounts = accounts
         self._account = self._accounts["STOCK"]
         self._normalize_data()
-        self._split = SimpleFactorStore(os.path.join(os.environ['HOMEPATH'], '.rqalpha\\bundle\split_factor.bcolz')) # TODO
-        self._dividends = DividendStore(os.path.join(os.environ['HOMEPATH'], '.rqalpha\\bundle\original_dividends.bcolz')) # TODO
+
 
     def _normalize_data(self):
         if len(self._trades):
