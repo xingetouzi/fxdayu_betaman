@@ -81,20 +81,20 @@ class BaseCalculator(object):
         self._account = self._accounts["STOCK"]
         self._normalize_data()
 
-
     def _normalize_data(self):
         if len(self._trades):
             self._trades["datetime"] = self._trades["datetime"].astype("datetime64[ns]")
             self._trades = self._trades.sort_values(by="datetime")
             if self._endSumDate:
-                self._trades = self._trades[self._trades["datetime"]<=self._endSumDate]
+                self._trades = self._trades[self._trades["datetime"] <= self._endSumDate]
             if self._startSumDate:
-                self._trades = self._trades[self._trades["datetime"]>=self._startSumDate]
+                self._trades = self._trades[self._trades["datetime"] >= self._startSumDate]
             self._trades.index = np.arange(len(self._trades))
             self._trades.index.name = "order_id"
             self._trades = self._trades.drop("order_id", axis=1, errors="ignore")
 
-    def _init_default_account(self, init_value):
+    @staticmethod
+    def _init_default_account(init_value):
         return {
             "STOCK":
                 {
@@ -126,38 +126,40 @@ class BaseCalculator(object):
                           pd.DataFrame(self.position).groupby(level=0, group_keys=False).apply(self._cal_entry)],
                          axis=1)
 
-    def _reform_stock_trades(self, code, trades):
+    @staticmethod
+    def _reform_stock_trades(code, trades):
         # 给股票的交割单加上分红送股的日子
-        trades = trades.reset_index().set_index('datetime')
-        trades.index = pd.to_datetime(trades.index)
-        start_date, end_date = trades.index[0], trades.index[-1] + datetime.timedelta(days=1)
+        _trades = trades.reset_index().set_index('datetime')
+        _trades.index = pd.to_datetime(_trades.index)
+        start_date, end_date = _trades.index[0], _trades.index[-1] + datetime.timedelta(days=1)
 
-        last_quan = trades.pop('last_quantity')
-        modified_quant = last_quan.append(DataAPI.bonus(code)['split_factor'])
-        last_price = trades.pop('last_price')
-        modified_price = last_price.append(
-            DataAPI.bonus(code).apply(lambda x: x['cash_before_tax'] / x['round_lot'], axis=1))
+        _bonus = DataAPI.bonus(code).copy()
+        _bonus['cash_before_tax'] = _bonus['cash_before_tax'] / _bonus['round_lot']
 
-        return pd.concat([trades, modified_quant.rename('last_quantity'), modified_price.rename('last_price')],
-                         axis=1).sort_index()[start_date: end_date]
+        cols = [i for i in ['split_factor', 'cash_before_tax'] if i in _bonus.columns]
+        _trades = _trades.append(pd.DataFrame(index=_bonus['closure_date'].dropna())).append(
+            _bonus[cols].rename(columns={'split_factor': 'last_quantity', 'cash_before_tax': 'last_price'}))
+
+        return _trades.sort_index()[start_date: end_date]
 
     @staticmethod
     def _trades_analyze(trades):
         position_avg_price = 0
         holding_position = 0
+        record_closure_position = 0
         _dividend_cash = 0
 
-        for _, order in trades.iterrows():
+        for dt, order in trades.iterrows():
             # 这里的计算可能会发现问题
             point_value = getattr(order, "point_value", 1)
             if ~np.isnan(order['order_id']):
 
                 direction = side2sign(order["side"])
                 profit = order["last_quantity"] * (order["last_price"] - position_avg_price) * point_value * \
-                         (-direction) if direction * holding_position < 0 else 0
-                if _dividend_cash:
-                    profit += _dividend_cash
-                    _dividend_cash = 0
+                         (-direction) if direction * holding_position < 0 else np.nan
+                # if _dividend_cash:
+                #     profit += _dividend_cash
+                #     _dividend_cash = 0
 
                 overall_cost = position_avg_price * holding_position + order["last_quantity"] * order["last_price"] \
                     if direction * holding_position >= 0 else 0
@@ -168,19 +170,27 @@ class BaseCalculator(object):
 
                 market_value = order["last_price"] * holding_position
 
-                yield order['order_id'], holding_position, market_value, position_avg_price, profit, order['transaction_cost']
+                yield order['order_id'], holding_position, market_value, position_avg_price,\
+                      profit, order['transaction_cost'], dt
             else:
+                if np.isnan(order['last_price']) and np.isnan(order['last_quantity']):
+                    if holding_position > 0:
+                        record_closure_position = holding_position
+                    continue
+
                 if ~np.isnan(order['last_price']):
-                    position_avg_price -= order['last_price']
-                    _dividend_cash = order['last_price'] * holding_position
+                    position_avg_price -= order['last_price'] if position_avg_price != 0 else 0
+                    if record_closure_position:
+                        _dividend_cash = order['last_price'] * record_closure_position
+                        record_closure_position = 0
 
                 if ~np.isnan(order['last_quantity']):
                     position_avg_price = position_avg_price / order['last_quantity']
                     holding_position = holding_position * order['last_quantity']
 
-                # if _dividend_cash and holding_position:
-                #    market_value = order["last_price"] * holding_position
-                #    yield -1, holding_position, market_value, position_avg_price, _dividend_cash, 0
+                # if _dividend_cash:
+                yield -1, record_closure_position, np.nan, position_avg_price, _dividend_cash, 0, dt
+                _dividend_cash = 0
 
     @memorized_method()
     # TODO 未考虑反向开仓,未考虑分红派息导致的仓位、市值、和持仓成本变化
@@ -191,12 +201,14 @@ class BaseCalculator(object):
                 trades = self._reform_stock_trades(ticker, trades)
             # order_id cumsum_quantity Xposition_side  position_id  market_value  avg_price  profits  pnl
             temp = pd.DataFrame.from_records(self._trades_analyze(trades),
-                 columns=['order_id', 'cumsum_quantity', 'market_value', 'avg_price', 'profit', 'transaction_cost'])
+                 columns=['order_id', 'cumsum_quantity', 'market_value', 'avg_price',
+                          'profits', 'transaction_cost', 'datetime'])
 
             temp["position_id"] = (temp["cumsum_quantity"] == 0).cumsum().shift(1).fillna(0) + 1  # TODO 未考虑反向开仓
             temp["position_id"] = temp["position_id"].astype(int)
             temp["position_side"] = (temp["cumsum_quantity"] >= 0).apply(sign2direction)
-            temp["pnl"] = temp["profit"].cumsum() - temp["transaction_cost"].cumsum()
+            temp["pnl"] = temp["profits"].fillna(0).cumsum() - temp["transaction_cost"].cumsum()
+            temp['order_book_id'] = ticker
 
             detail.append(temp.set_index('order_id'))
 
@@ -211,7 +223,8 @@ class BaseCalculator(object):
 
     @memorized_method()
     def _position_info_detail_by_time(self):
-        details = pd.concat([self._trades, self._position_info_detail()], axis=1)
+        details = pd.concat([self._trades.drop(["datetime", "order_book_id"], axis=1),
+                             self._position_info_detail()], axis=1)
         market_data = self.market_data
         index = sorted(pd.concat([details["datetime"], market_data.reset_index()["datetime"]]).unique())
         fields = ["cumsum_quantity", "pnl", "market_value", "position_side", "avg_price", "order_book_id", "datetime"]
@@ -224,8 +237,7 @@ class BaseCalculator(object):
 
     @memorized_method()
     def _position_info_detail_by_symbol(self):
-        return pd.concat([self._trades[["order_book_id", "datetime"]], self._position_info_detail()], axis=1) \
-            .reset_index().set_index(["order_book_id", "order_id"]).sort_index()
+        return self._position_info_detail().reset_index().set_index(["order_book_id", "order_id"]).sort_index()
 
     @property
     @memorized_method()
