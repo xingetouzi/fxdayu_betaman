@@ -171,7 +171,7 @@ class BaseCalculator(object):
 
                 market_value = order["last_price"] * holding_position
 
-                yield order['order_id'], int(holding_position), market_value, position_avg_price,\
+                yield order['order_id'], holding_position, market_value, position_avg_price,\
                       profit, order['transaction_cost'], dt
             else:
                 if np.isnan(order['last_price']) and np.isnan(order['last_quantity']):
@@ -192,7 +192,6 @@ class BaseCalculator(object):
                     position_avg_price = position_avg_price / order['last_quantity']
                     holding_position = holding_position * order['last_quantity']
 
-                holding_position = int(holding_position)
                 if _dividend_cash:
                     yield -1, holding_position, holding_position*position_avg_price, position_avg_price, \
                           _dividend_cash, 0, dt
