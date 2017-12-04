@@ -138,7 +138,8 @@ class BaseCalculator(object):
         if 'cash_before_tax' in cols:
             _bonus['cash_before_tax'] = _bonus['cash_before_tax'] / _bonus['round_lot']
 
-        _trades = _trades.append(pd.DataFrame(index=_bonus['closure_date'].dropna())).append(
+        _trades = _trades.append(pd.DataFrame(index=_bonus['closure_date'].dropna())
+                                 if _bonus.get('closure_date') is not None else None).append(
             _bonus[cols].rename(columns={'split_factor': 'last_quantity', 'cash_before_tax': 'last_price'}))
 
         return _trades.reset_index().sort_values(['index', 'order_id']).set_index('index')[start_date: end_date]
@@ -165,7 +166,7 @@ class BaseCalculator(object):
                 overall_cost = position_avg_price * holding_position + order["last_quantity"] * order["last_price"] \
                     if direction * holding_position >= 0 else 0
 
-                holding_position += order['last_quantity'] * direction
+                holding_position += int(order['last_quantity']) * direction
                 position_avg_price = overall_cost / holding_position if overall_cost != 0 else (
                     0 if holding_position == 0 else position_avg_price)
 
@@ -180,7 +181,6 @@ class BaseCalculator(object):
                     continue
 
                 if ~np.isnan(order['last_price']):
-                    position_avg_price -= order['last_price'] if position_avg_price != 0 else 0
                     if not np.allclose(record_closure_position, 0):
                         _dividend_cash = order['last_price'] * record_closure_position
                         # if np.allclose(_dividend_cash, 0):
@@ -192,10 +192,8 @@ class BaseCalculator(object):
                     position_avg_price = position_avg_price / order['last_quantity']
                     holding_position = holding_position * order['last_quantity']
 
-                if _dividend_cash:
-                    yield -1, holding_position, holding_position*position_avg_price, position_avg_price, \
-                          _dividend_cash, 0, dt
-                    _dividend_cash = 0
+                yield -1, int(holding_position), np.nan, position_avg_price, _dividend_cash, 0, dt
+                _dividend_cash = 0
 
     @memorized_method()
     # TODO 未考虑反向开仓,未考虑分红派息导致的仓位、市值、和持仓成本变化
@@ -232,14 +230,14 @@ class BaseCalculator(object):
                              self._position_info_detail()], axis=1)
         market_data = self.market_data
         index = sorted(pd.concat([details["datetime"], market_data.reset_index()["datetime"]]).unique())
-        fields = ["cumsum_quantity", "pnl", "market_value", "position_side", "avg_price", "order_book_id", "datetime"]
+        fields = ["cumsum_quantity", "pnl", "position_side", "avg_price", "order_book_id", "datetime"]
         #print(details[fields].reset_index().set_index(["order_book_id", "datetime"]).sort_index().head(20),
         #      '======================================================\n')
         df = details[fields].reset_index().groupby("order_book_id").apply(partial(self._concat_market_data,
                                                                                   index=index,
                                                                                   market_data=market_data))
-        #print(df.head(20))
         groupby = df.reset_index().groupby(["datetime", "order_book_id"]).last()
+        groupby['market_value'] = groupby["close"] * groupby["cumsum_quantity"]
         groupby["float_pnl"] = groupby["pnl"] + (groupby["close"] - groupby["avg_price"]) * groupby["cumsum_quantity"]
         return groupby
 
@@ -299,7 +297,7 @@ class BaseCalculator(object):
 
     @property
     def market_value_by_time(self):
-        return self.position_info_detail_by_time.apply(lambda x: x["close"] * x["cumsum_quantity"], axis=1)
+        return self.position_info_detail_by_time["market_value"]
 
     @property
     @memorized_method()
