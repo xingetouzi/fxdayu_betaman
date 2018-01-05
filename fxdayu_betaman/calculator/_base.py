@@ -132,16 +132,17 @@ class BaseCalculator(object):
         _trades = trades.reset_index().set_index('datetime')
         _trades.index = pd.to_datetime(_trades.index)
         start_date, end_date = _trades.index[0], _trades.index[-1] + datetime.timedelta(days=1)
+        _bonus = DataAPI.bonus(code)
+        if _bonus.size != 0:
+            cols = [i for i in ['split_factor', 'cash_before_tax'] if i in _bonus.columns]
+            if 'cash_before_tax' in cols:
+                _bonus['cash_before_tax'] = _bonus['cash_before_tax'] / _bonus['round_lot']
 
-        _bonus = DataAPI.bonus(code).copy()
-        cols = [i for i in ['split_factor', 'cash_before_tax'] if i in _bonus.columns]
-        if 'cash_before_tax' in cols:
-            _bonus['cash_before_tax'] = _bonus['cash_before_tax'] / _bonus['round_lot']
-
-        _trades = _trades.append(pd.DataFrame(index=_bonus['closure_date'].dropna())
-                                 if _bonus.get('closure_date') is not None else None).append(
-            _bonus[cols].rename(columns={'split_factor': 'last_quantity', 'cash_before_tax': 'last_price'}))
-
+            _trades = _trades.append(pd.DataFrame(index=_bonus['closure_date'].dropna())).append(
+                _bonus[cols].rename(columns={'split_factor': 'last_quantity', 'cash_before_tax': 'last_price'}))
+        else:
+            _trades = _trades.reset_index().set_index('datetime')
+            _trades.index.name = 'index'
         return _trades.reset_index().sort_values(['index', 'order_id']).set_index('index')[start_date: end_date]
 
     @staticmethod
@@ -166,7 +167,7 @@ class BaseCalculator(object):
                 overall_cost = position_avg_price * holding_position + order["last_quantity"] * order["last_price"] \
                     if direction * holding_position >= 0 else 0
 
-                holding_position += int(order['last_quantity']) * direction
+                holding_position += order['last_quantity'] * direction
                 position_avg_price = overall_cost / holding_position if overall_cost != 0 else (
                     0 if holding_position == 0 else position_avg_price)
 
@@ -181,6 +182,7 @@ class BaseCalculator(object):
                     continue
 
                 if ~np.isnan(order['last_price']):
+                    position_avg_price -= order['last_price'] if position_avg_price != 0 else 0
                     if not np.allclose(record_closure_position, 0):
                         _dividend_cash = order['last_price'] * record_closure_position
                         # if np.allclose(_dividend_cash, 0):
@@ -192,16 +194,17 @@ class BaseCalculator(object):
                     position_avg_price = position_avg_price / order['last_quantity']
                     holding_position = holding_position * order['last_quantity']
 
-                yield -1, int(holding_position), np.nan, position_avg_price, _dividend_cash, 0, dt
-                _dividend_cash = 0
+                if _dividend_cash:
+                    yield -1, holding_position, holding_position*position_avg_price, position_avg_price, \
+                          _dividend_cash, 0, dt
+                    _dividend_cash = 0
 
     @memorized_method()
     # TODO 未考虑反向开仓,未考虑分红派息导致的仓位、市值、和持仓成本变化
     def _position_info_detail(self):
         detail = []
         for ticker, trades in self._trades.groupby("order_book_id"):
-            if DataAPI.bonus(ticker).size != 0:
-                trades = self._reform_stock_trades(ticker, trades)
+            trades = self._reform_stock_trades(ticker, trades)
             # order_id cumsum_quantity Xposition_side  position_id  market_value  avg_price  profits  pnl
             temp = pd.DataFrame.from_records(self._trades_analyze(trades),
                  columns=['order_id', 'cumsum_quantity', 'market_value', 'avg_price',
@@ -230,14 +233,14 @@ class BaseCalculator(object):
                              self._position_info_detail()], axis=1)
         market_data = self.market_data
         index = sorted(pd.concat([details["datetime"], market_data.reset_index()["datetime"]]).unique())
-        fields = ["cumsum_quantity", "pnl", "position_side", "avg_price", "order_book_id", "datetime"]
+        fields = ["cumsum_quantity", "pnl", "market_value", "position_side", "avg_price", "order_book_id", "datetime"]
         #print(details[fields].reset_index().set_index(["order_book_id", "datetime"]).sort_index().head(20),
         #      '======================================================\n')
         df = details[fields].reset_index().groupby("order_book_id").apply(partial(self._concat_market_data,
                                                                                   index=index,
                                                                                   market_data=market_data))
+        #print(df.head(20))
         groupby = df.reset_index().groupby(["datetime", "order_book_id"]).last()
-        groupby['market_value'] = groupby["close"] * groupby["cumsum_quantity"]
         groupby["float_pnl"] = groupby["pnl"] + (groupby["close"] - groupby["avg_price"]) * groupby["cumsum_quantity"]
         return groupby
 
@@ -297,7 +300,7 @@ class BaseCalculator(object):
 
     @property
     def market_value_by_time(self):
-        return self.position_info_detail_by_time["market_value"]
+        return self.position_info_detail_by_time.apply(lambda x: x["close"] * x["cumsum_quantity"], axis=1)
 
     @property
     @memorized_method()
