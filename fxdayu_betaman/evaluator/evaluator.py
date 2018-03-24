@@ -1,5 +1,5 @@
-# from jaqs.data import DataView  # 可以视为一个轻量级的数据库，数据格式基于pandas，方便数据的调用和处理
-# from jaqs.data import RemoteDataService  # 数据服务，用于下载数据
+import jaqs_fxdayu
+jaqs_fxdayu.patch_all()
 from jaqs.research import SignalDigger
 from jaqs.research.signaldigger import performance as pfm
 import pandas as pd

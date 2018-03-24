@@ -1,3 +1,5 @@
+import jaqs_fxdayu
+jaqs_fxdayu.patch_all()
 from jaqs.data import DataView
 from jaqs.data import RemoteDataService # 远程数据服务类
 from fxdayu_betaman.evaluator import Evaluator
