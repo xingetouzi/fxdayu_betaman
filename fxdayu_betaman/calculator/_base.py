@@ -1,4 +1,3 @@
-import os
 import datetime
 import functools
 import weakref
@@ -17,12 +16,12 @@ except ImportError:
 
 from jaqs.data import DataApi
 
-api = DataApi("tcp://192.168.0.102:23000")
 data_config = {
-    "remote.data.address": "tcp://data.tushare.org:8910",
-    "remote.data.username": "18566262672",
-    "remote.data.password": "eyJhbGciOiJIUzI1NiJ9.eyJjcmVhdGVfdGltZSI6IjE1MTI3MDI3NTAyMTIiLCJpc3MiOiJhdXRoMCIsImlkIjoiMTg1NjYyNjI2NzIifQ.O_-yR0zYagrLRvPbggnru1Rapk4kiyAzcwYt2a3vlpM"
+    "remote.data.address": "tcp://192.168.0.102:23000",
+    "remote.data.username": "fxdayu_betaman",
+    "remote.data.password": "fxdayu_betaman"
 }
+api = DataApi(data_config["remote.data.address"])
 api.login(username=data_config["remote.data.username"],
           password=data_config["remote.data.password"])
 
@@ -72,6 +71,7 @@ class BaseCalculator(object):
                  dailySumTime=15,
                  startSumDate=None,
                  endSumDate=None):
+
         self._freq = freq
         self._dailySumTime = dailySumTime
         self._startSumDate = startSumDate

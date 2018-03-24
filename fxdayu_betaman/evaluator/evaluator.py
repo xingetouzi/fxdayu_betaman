@@ -36,16 +36,14 @@ class Dimensions:
 
     def __call__(self,
                  regression_method="wls",
-                 regression_weights="capitalization",
-                 rank_ic_preprocessing=("winsorize", "neutralization_both", "standard_scale"),
+                 preprocessing=("winsorize", "neutralization_both", "standard_scale"),
                  p_threshold=0.05,
                  n_quantiles=10,
                  calc_full_report=False):
 
         '''
         :param regression_method: 回归方法 目前仅支持 ols wls
-        :param regression_weights: 回归加权方法 目前仅支持"capitalization"
-        :param rank_ic_preprocessing: tuple,分别代表因子数据预处理的方法,按顺序依次执行.一般依次为去极值,中性化,标准化
+        :param preprocessing: tuple,分别代表因子数据预处理的方法,按顺序依次执行.一般依次为去极值,中性化,标准化
                                       支持neutralization_both, neutralization_cap, neutralization_industry三种中性化方法
         :param p_threshold: float 显著性水平标准 通常为0.05
         :param n_quantiles: int quantile分类数 默认10
@@ -58,15 +56,13 @@ class Dimensions:
             self.regression_method = regression_method
         elif regression_method == "wls":
             self.regression_method = regression_method
-            self.regression_weights = regression_weights
         else:
             raise ValueError("regression method should be ols or wls")
-        self.rank_ic_preprocessing = rank_ic_preprocessing
+        self.preprocessing = preprocessing
         # self.p_threshold = p_threshold
 
         # 根据需求处理signal_data为signal_series,算ic,算回归系数等
         result = self._result(signal_data)
-
         def _restructure(s):
             return pd.Series(s, index=pd.MultiIndex.from_tuples(s.index)).rename("signal")
         self.signal_series = _restructure(self.signal_series)
@@ -77,7 +73,7 @@ class Dimensions:
                      "p-value(IC)": "p-value", "IC Skew": "Skew", "IC Kurtosis": "Kurtosis"})
 
         # 稳定性绩效评估表
-        stability_df = pd.concat(map(partial(self._stability_df_transform, p_threshold=p_threshold),
+        stability_df = pd.concat(map(partial(self._stability_df_transform, pvalue_threshold=p_threshold),
                                      (result[["回归系数", "回归系数 p值"]], result[["IC", "IC p值"]],
                         result[["最大回报IC", "最大回报IC p值"]], result[["最低回报IC", "最低回报IC p值"]])), axis=1)
 
@@ -89,6 +85,7 @@ class Dimensions:
             signal_data["quantile"] = signal_data["signal"].groupby(level=0).apply(pd.qcut, q=n_quantiles, labels=np.arange(n_quantiles)+1)
         except ValueError:
             print("quantile cut do not work")
+            signal_data["quantile"] = 1
         signal_data["bins"] = signal_data["signal"].groupby(level=0).apply(pd.cut, bins=n_quantiles, labels=np.arange(n_quantiles)+1)
 
         # 下面先对因子做处理，可能要改，因为不确定能不能跟前面的整合
@@ -100,9 +97,9 @@ class Dimensions:
         # 持有收益评估
         profit_df = self._profit_df(signal_data)
         # 最大收益评估
-        up_space_df = self._profit_df(signal_data.drop("return", axis=1).rename({"upside_ret": "return"}, axis=1))
+        up_space_df = self._profit_df(signal_data.drop("return", axis=1).rename(columns={"upside_ret": "return"}))
         # 最大风险评估
-        down_space_df = self._profit_df(signal_data.drop("return", axis=1).rename({"downside_ret": "return"}, axis=1))
+        down_space_df = self._profit_df(signal_data.drop("return", axis=1).rename(columns={"downside_ret": "return"}))
 
         # profit, up_space和down_sapce里计算的因子是没做过变换的原因子
         output = namedtuple("Output", ["coef", "stability", "profit", "up_space", "down_space", "full_report"])
@@ -237,17 +234,17 @@ class Dimensions:
         ret = X.pop("return")
         signal_series = X["signal"]
 
-        for method in self.rank_ic_preprocessing:
+        for method in self.preprocessing:
             if method in self.methods.keys():
                 signal_series = self.methods[method](signal_series)
             elif method.startswith("neutralization"):
                 X1 = X.copy()
                 X1.update(signal_series)
                 signal_series = self._ic_regression(X1, method)
-                signal_series.index = pd.MultiIndex.from_product([[date], signal_series.index])
             else:
                 pass
 
+        signal_series.index = pd.MultiIndex.from_product([[date], signal_series.index])
         # ic_neutral_way = [x for x in self.rank_ic_preprocessing if x.startswith("neutralization")]
         # if len(ic_neutral_way) != 0:
         #     ic_other_way = list(set(self.rank_ic_preprocessing)-set(ic_neutral_way))
@@ -448,13 +445,13 @@ class Evaluator:
         obj = SignalDigger()
         # 处理因子 计算目标股票池每只股票的持有期收益，和对应因子值的quantile分类
         obj.process_signal_before_analysis(signal=signal,
-                                           price=self.dv.get_ts("close_adj"),
-                                           high=self.dv.get_ts("high_adj"),
-                                           low=self.dv.get_ts("low_adj"),
+                                           price=self.dv.get_ts("close_adj").reindex_like(signal),
+                                           high=self.dv.get_ts("high_adj").reindex_like(signal),
+                                           low=self.dv.get_ts("low_adj").reindex_like(signal),
                                            n_quantiles=5,
-                                           mask=mask,
-                                           can_enter=can_enter,  # 是否能进场
-                                           can_exit=can_exit,  # 是否能出场
+                                           mask=mask.reindex_like(signal) if mask is not None else None,
+                                           can_enter=can_enter.reindex_like(signal) if can_enter is not None else None,  # 是否能进场
+                                           can_exit=can_exit.reindex_like(signal) if can_exit is not None else None,  # 是否能出场
                                            period=period,  # 持有期
                                            benchmark_price=benchmark,  # 基准价格 可不传入，持有期收益（return）计算为绝对收益
                                            commission=commission,
@@ -485,7 +482,7 @@ class Evaluator:
             if limit_rules == "A-share default":
                 limit_rules = self._a_share_defaut_rule()
             else:
-                raise ValueError("only support 'A-share default' now")
+                raise ValueError("limit rules only support 'A-share default' now")
         elif isinstance(limit_rules, dict):
             for rule in limit_rules.keys():
                 if not (rule in ["mask","can_enter","can_exit"]):
@@ -497,8 +494,10 @@ class Evaluator:
                                    commission=commission,
                                    **limit_rules).drop("quantile",axis=1)
 
+        # print(data)
+
         def del_all_zero_date(df):
-            index = df["return"].groupby(level=0).transform(lambda x: x if (x != 0).all() else None).dropna().index
+            index = df["return"].groupby(level=0).transform(lambda x: x if (x != 0).any() else None).dropna().index
             return df.reindex(index)
         data = del_all_zero_date(data)
 
