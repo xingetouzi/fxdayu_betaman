@@ -15,6 +15,16 @@ try:
 except ImportError:
     from fastcache import lru_cache
 
+from jaqs.data import DataApi
+
+api = DataApi("tcp://192.168.0.102:23000")
+data_config = {
+    "remote.data.address": "tcp://data.tushare.org:8910",
+    "remote.data.username": "18566262672",
+    "remote.data.password": "eyJhbGciOiJIUzI1NiJ9.eyJjcmVhdGVfdGltZSI6IjE1MTI3MDI3NTAyMTIiLCJpc3MiOiJhdXRoMCIsImlkIjoiMTg1NjYyNjI2NzIifQ.O_-yR0zYagrLRvPbggnru1Rapk4kiyAzcwYt2a3vlpM"
+}
+api.login(username=data_config["remote.data.username"],
+          password=data_config["remote.data.password"])
 
 
 def memorized_method(*lru_args, **lru_kwargs):
@@ -132,18 +142,41 @@ class BaseCalculator(object):
         _trades = trades.reset_index().set_index('datetime')
         _trades.index = pd.to_datetime(_trades.index)
         start_date, end_date = _trades.index[0], _trades.index[-1] + datetime.timedelta(days=1)
-        _bonus = DataAPI.bonus(code)
-        if _bonus.size != 0:
-            cols = [i for i in ['split_factor', 'cash_before_tax'] if i in _bonus.columns]
-            if 'cash_before_tax' in cols:
-                _bonus['cash_before_tax'] = _bonus['cash_before_tax'] / _bonus['round_lot']
+        # _bonus = DataAPI.bonus(code)
+        # if _bonus.size != 0:
+        #     cols = [i for i in ['split_factor', 'cash_before_tax'] if i in _bonus.columns]
+        #     if 'cash_before_tax' in cols:
+        #         _bonus['cash_before_tax'] = _bonus['cash_before_tax'] / _bonus['round_lot']
+        #
+        #     _trades = _trades.append(pd.DataFrame(index=_bonus['closure_date'].dropna())).append(
+        #         _bonus[cols].rename(columns={'split_factor': 'last_quantity', 'cash_before_tax': 'last_price'}))
+        # else:
+        #     _trades = _trades.reset_index().set_index('datetime')
+        #     _trades.index.name = 'index'
 
-            _trades = _trades.append(pd.DataFrame(index=_bonus['closure_date'].dropna())).append(
-                _bonus[cols].rename(columns={'split_factor': 'last_quantity', 'cash_before_tax': 'last_price'}))
-        else:
-            _trades = _trades.reset_index().set_index('datetime')
-            _trades.index.name = 'index'
-        return _trades.reset_index().sort_values(['index', 'order_id']).set_index('index')[start_date: end_date]
+        def code_transform(_code):
+            pre, suf = _code.split(".")
+            suf = "SZ" if suf == "XSHE" else "SH"
+            return ".".join([pre, suf])
+
+        _bonus = api.query(view="lb.secDividend", filter="symbol=%s" % (code_transform(code)))[0]
+
+        def foo(df, trade_df):
+            new = df[["exdiv_date", "record_date"]].apply(pd.to_datetime, errors='coerce')
+            new["cash"] = df["cash"].apply(lambda x: float(x) / 10 if x != "" else np.nan)
+            new["split_factor"] = df[["share_ratio", "share_trans_ratio"]].apply(lambda x: np.sum(x) / 10 + 1, axis=1)
+            new = new[new["exdiv_date"].notnull()]
+            new = new.set_index("exdiv_date").sort_index()
+            if df.size != 0:
+                trade_df = trade_df.append(pd.DataFrame(index=new['record_date'])).append(
+                    new.drop("record_date", axis=1).rename(columns={'split_factor': 'last_quantity', 'cash': 'last_price'}))
+            else:
+                trade_df = trade_df.reset_index().set_index('datetime')
+                trade_df.index.name = 'index'
+            return trade_df
+
+        return foo(_bonus, _trades).\
+            reset_index().sort_values(['index', 'order_id']).set_index('index')[start_date: end_date]
 
     @staticmethod
     def _trades_analyze(trades):
@@ -155,6 +188,7 @@ class BaseCalculator(object):
         for dt, order in trades.iterrows():
             # 这里的计算可能会发现问题
             point_value = getattr(order, "point_value", 1)
+
             if ~np.isnan(order['order_id']):
 
                 direction = side2sign(order["side"])
