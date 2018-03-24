@@ -35,7 +35,6 @@ class Dimensions:
         }
 
     def __call__(self,
-                 signal_data=None,
                  regression_method="wls",
                  regression_weights="capitalization",
                  rank_ic_preprocessing=("winsorize", "neutralization_both", "standard_scale"),
@@ -43,13 +42,17 @@ class Dimensions:
                  n_quantiles=10,
                  calc_full_report=False):
 
-        """
-        rank_ic_preprocesssing 支持neutralization_both, neutralization_cap, neutralization_industry
-        """
-
-        if signal_data is None:
-            signal_data = self.signal_data
-
+        '''
+        :param regression_method: 回归方法 目前仅支持 ols wls
+        :param regression_weights: 回归加权方法 目前仅支持"capitalization"
+        :param rank_ic_preprocessing: tuple,分别代表因子数据预处理的方法,按顺序依次执行.一般依次为去极值,中性化,标准化
+                                      支持neutralization_both, neutralization_cap, neutralization_industry三种中性化方法
+        :param p_threshold: float 显著性水平标准 通常为0.05
+        :param n_quantiles: int quantile分类数 默认10
+        :param calc_full_report: bool 是否计算完整报告 --因子日度ic 收益等
+        :return:
+        '''
+        signal_data = self.signal_data
         self.regression_preprocessing = ("mad",) # todo 支持更多预处理方法
         if regression_method == "ols":
             self.regression_method = regression_method
@@ -79,7 +82,7 @@ class Dimensions:
                         result[["最大回报IC", "最大回报IC p值"]], result[["最低回报IC", "最低回报IC p值"]])), axis=1)
 
         self.signal_data_before = signal_data.copy()
-        self.signal_data.update(self.signal_series)
+        self.signal_data["signal"] = self.signal_series
 
         # 划分quantile 计算投资组合收益
         try:
@@ -396,6 +399,10 @@ class Dimensions:
 class Evaluator:
 
     def __init__(self, dv, signal):
+        '''
+        :param dv: jaqs.dataview
+        :param signal: pd.DataFrame
+        '''
         self.dv = dv
         self.signal = signal
         for field in ["trade_status","close_adj","high_adj","low_adj"]:
@@ -427,6 +434,16 @@ class Evaluator:
                        can_exit=None,
                        benchmark=None,
                        commission=0.0008):
+        '''
+        :param signal:
+        :param period:
+        :param mask:
+        :param can_enter:
+        :param can_exit:
+        :param benchmark:
+        :param commission:
+        :return:
+        '''
 
         obj = SignalDigger()
         # 处理因子 计算目标股票池每只股票的持有期收益，和对应因子值的quantile分类
@@ -451,6 +468,18 @@ class Evaluator:
                  time=None, # 时间范围
                  comp=None, # 指数成分范围
                  industry=None): # 行业范围
+        '''
+        :param period: 评估周期 int
+        :param benchmark: 指数价格 pd.DataFrame/pd.Series
+        :param commission:双边手续费率 float 默认0.0008
+        :param industry_standard:行业标准 str/pd.DataFrame/pd.Series
+        :param cap:流通市值 str/pd.DataFrame/pd.Series
+        :param limit_rules: 限制条件 dict {mask,can_enter,can_exit}
+        :param time:list of tuple, e.g. [('20170101', '20170201')]
+        :param comp:指数成分 只针对该成分股票进行评估 str/pd.DataFrame/pd.Series
+        :param industry:行业成分 list 只针对该行业成分股票进行评估 行业元素需包含在设置的行业标准中
+        :return:
+        '''
 
         if isinstance(limit_rules, str):
             if limit_rules == "A-share default":
