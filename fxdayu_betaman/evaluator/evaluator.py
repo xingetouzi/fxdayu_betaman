@@ -63,8 +63,8 @@ class Dimensions:
                                      (result[["回归系数", "回归系数 p值"]], result[["IC", "IC p值"]],
                         result[["最大回报IC", "最大回报IC p值"]], result[["最低回报IC", "最低回报IC p值"]])), axis=1)
 
-        signal_data.update(self.signal_series)
-        self.signal_data_after = signal_data
+        self.signal_data_before = signal_data.copy()
+        self.signal_data.update(self.signal_series)
 
         try:
             signal_data["quantile"] = signal_data["signal"].groupby(level=0).apply(pd.qcut, q=5, labels=[1,2,3,4,5])
