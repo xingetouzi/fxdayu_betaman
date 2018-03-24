@@ -10,11 +10,12 @@ if __name__ == "__main__":
     c = client.get_database("signal").get_collection("trade")
     trades = c.find({"strategy": strategy_id}, {"_id": 0})
     tdf = pd.DataFrame(list(trades))
-    if len(tdf):
-        tdf["datetime"] = tdf["trading_datetime"]
-    calculator = Performance(tdf, 1000000)
-    # daily_returns = calculator.daily_returns
-    # print(daily_returns)
-    print(calculator.entry)
+    print(tdf)
+    # if len(tdf):
+    #     tdf["datetime"] = tdf["trading_datetime"]
+    # calculator = Performance(tdf, 1000000)
+    # # daily_returns = calculator.daily_returns
+    # # print(daily_returns)
+    # print(calculator.entry)
     # returns = daily_returns
     # b_r = calculator.benchmark_rets()

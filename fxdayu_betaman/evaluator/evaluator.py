@@ -12,25 +12,36 @@ from collections import namedtuple
 from jaqs.trade import common
 
 
+index_map={
+    "hs300":"000300.SH_member",
+    "zz500":'000905.SH_member',
+    "sz50":'000016.SH_member',
+}
+
 class Dimensions:
 
-    def __init__(self, dv, signal_data, industry_standard, period):
+    def __init__(self, signal_data, industry_standard, log_cap, period):
         self.signal_data = signal_data
-        self.sw1 = industry_standard
-        self.cap = dv.get_ts("float_mv").apply(np.log)  # TODO not sure about this indicator
-        self.period = period
+        self.industry_standard = industry_standard # 行业分类
+        self.cap = log_cap  # 通常是对数流通市值
+        self.period = period # 评估周期
         self.signal_series = pd.Series()
 
         self.methods = {
             "mad": self._mad,
+            "winsorize": self._winsorize,
             "barra": partial(self._barra, cap_series=self.cap.stack()),
             "standard_scale": lambda x: pd.Series(scale(x), index=x.index, name="signal"),
         }
 
-    def __call__(self, signal_data=None, regression_preprocessing=("mad",),
-                 regression_method="wls", regression_weights="capitalization",
-                 rank_ic_preprocessing=("mad", "neutralization_both", "standard_scale"),
-                 p_threshold=0.05):
+    def __call__(self,
+                 signal_data=None,
+                 regression_method="wls",
+                 regression_weights="capitalization",
+                 rank_ic_preprocessing=("winsorize", "neutralization_both", "standard_scale"),
+                 p_threshold=0.05,
+                 n_quantiles=10,
+                 calc_full_report=False):
 
         """
         rank_ic_preprocesssing 支持neutralization_both, neutralization_cap, neutralization_industry
@@ -38,7 +49,8 @@ class Dimensions:
 
         if signal_data is None:
             signal_data = self.signal_data
-        self.regression_preprocessing = regression_preprocessing
+
+        self.regression_preprocessing = ("mad",) # todo 支持更多预处理方法
         if regression_method == "ols":
             self.regression_method = regression_method
         elif regression_method == "wls":
@@ -47,30 +59,34 @@ class Dimensions:
         else:
             raise ValueError("regression method should be ols or wls")
         self.rank_ic_preprocessing = rank_ic_preprocessing
-        self.p_threshold = p_threshold
+        # self.p_threshold = p_threshold
 
+        # 根据需求处理signal_data为signal_series,算ic,算回归系数等
         result = self._result(signal_data)
 
         def _restructure(s):
             return pd.Series(s, index=pd.MultiIndex.from_tuples(s.index)).rename("signal")
         self.signal_series = _restructure(self.signal_series)
 
+        # 预测能力绩效评估表
         coef_df = pfm.calc_ic_stats_table(result[["回归系数", "IC", "最大回报IC", "最低回报IC"]]).rename(
             columns={"IC Mean": "Mean", "IC Std.": "Std.", "t-stat(IC)": "t-stat",
                      "p-value(IC)": "p-value", "IC Skew": "Skew", "IC Kurtosis": "Kurtosis"})
 
-        stability_df = pd.concat(map(self._stability_df_transform,
+        # 稳定性绩效评估表
+        stability_df = pd.concat(map(partial(self._stability_df_transform, p_threshold=p_threshold),
                                      (result[["回归系数", "回归系数 p值"]], result[["IC", "IC p值"]],
                         result[["最大回报IC", "最大回报IC p值"]], result[["最低回报IC", "最低回报IC p值"]])), axis=1)
 
         self.signal_data_before = signal_data.copy()
         self.signal_data.update(self.signal_series)
 
+        # 划分quantile 计算投资组合收益
         try:
-            signal_data["quantile"] = signal_data["signal"].groupby(level=0).apply(pd.qcut, q=5, labels=[1,2,3,4,5])
+            signal_data["quantile"] = signal_data["signal"].groupby(level=0).apply(pd.qcut, q=n_quantiles, labels=np.arange(n_quantiles)+1)
         except ValueError:
             print("quantile cut do not work")
-        signal_data["bins"] = signal_data["signal"].groupby(level=0).apply(pd.cut, bins=5, labels=[1,2,3,4,5])
+        signal_data["bins"] = signal_data["signal"].groupby(level=0).apply(pd.cut, bins=n_quantiles, labels=np.arange(n_quantiles)+1)
 
         # 下面先对因子做处理，可能要改，因为不确定能不能跟前面的整合
         # copy_signal_data = signal_data.copy()
@@ -78,9 +94,11 @@ class Dimensions:
         # copy_signal_data["signal"] = copy_signal_data["signal"].groupby(level=0).transform(
         #     lambda x: self.combined_method(
         #         list(map(lambda y: self.methods[y], profit_signal_preprocessing)), x))
-
+        # 持有收益评估
         profit_df = self._profit_df(signal_data)
+        # 最大收益评估
         up_space_df = self._profit_df(signal_data.drop("return", axis=1).rename({"upside_ret": "return"}, axis=1))
+        # 最大风险评估
         down_space_df = self._profit_df(signal_data.drop("return", axis=1).rename({"downside_ret": "return"}, axis=1))
 
         # profit, up_space和down_sapce里计算的因子是没做过变换的原因子
@@ -91,7 +109,7 @@ class Dimensions:
             profit=profit_df.rename("收益").to_frame(),
             up_space=up_space_df.rename("潜在收益").to_frame(),
             down_space=down_space_df.rename("潜在风险").to_frame(),
-            full_report= self.create_full_report()
+            full_report=self.create_full_report() if calc_full_report else None
         )
 
     def _profit_df(self, signal_data):
@@ -174,6 +192,13 @@ class Dimensions:
         return series.clip(median-5*mad, median+5*mad).rename("signal")
 
     @staticmethod
+    def _winsorize(series):
+        q = series.quantile([0.025, 0.975])
+        series[series < q.iloc[0]] = q.iloc[0]
+        series[series > q.iloc[1]] = q.iloc[1]
+        return series.rename("signal")
+
+    @staticmethod
     def _barra(series, cap_series):
         """
         MultiIndex; 同时应该包含两个columns,[factor, cap(market_value)]
@@ -201,7 +226,7 @@ class Dimensions:
         """
         df.index = df.index.droplevel(0)
         cap = self.cap.loc[date, :].rename("cap")
-        industry_df = pd.get_dummies(self.sw1.loc[date, :].dropna())
+        industry_df = pd.get_dummies(self.industry_standard.loc[date, :].dropna())
         X = pd.concat([df, cap, industry_df], axis=1).dropna()
 
         upside_ret = X.pop("upside_ret")
@@ -357,8 +382,6 @@ class Dimensions:
 
         """
         # signal quantile description statistics
-        qstb = calc_quantile_stats_table(self.signal_data)
-
         self.create_returns_report()
         self.create_information_report()
         # we do not do turnover analysis for now
@@ -372,62 +395,78 @@ class Dimensions:
 
 class Evaluator:
 
-    """
-    可以开个接口来操作是否对因子做一些中性化什么的
-    """
-
     def __init__(self, dv, signal):
         self.dv = dv
         self.signal = signal
+        for field in ["trade_status","close_adj","high_adj","low_adj"]:
+            if field not in self.dv.fields:
+                raise ValueError("请确保dv中必须提供的字段-%s存在!" % (field,))
 
-    def _generate_data(self, signal, period, benchmark):
-        # 定义信号过滤条件-非指数成分
-        def mask_index_member():
-            df_index_member = self.dv.get_ts('index_member')
-            mask_index_member = df_index_member == 0
-            return mask_index_member
+    def _a_share_defaut_rule(self):
+        trade_status = self.dv.get_ts('trade_status')
+        mask_sus = trade_status.fillna("") == u'停牌'
+        # 涨停
+        up_limit = self.dv.add_formula('up_limit', '(close_adj - Delay(close_adj, 1)) / Delay(close_adj, 1) > 0.095',
+                                       is_quarterly=False)
+        # 跌停
+        down_limit = self.dv.add_formula('down_limit','(close_adj - Delay(close_adj, 1)) / Delay(close_adj, 1) < -0.095',
+                                         is_quarterly=False)
+        can_enter = np.logical_and(up_limit < 1, ~mask_sus)  # 未涨停未停牌
+        can_exit = np.logical_and(down_limit < 1, ~mask_sus)  # 未跌停未停牌
+        return {
+            "can_enter":can_enter,
+            "can_exit":can_exit,
+            "mask":None,
+        }
 
-        # 定义可买卖条件——未停牌、未涨跌停
-        def limit_up_down():
-            trade_status = self.dv.get_ts('trade_status')
-            mask_sus = trade_status == u'停牌'
-            # 涨停
-            self.dv.add_formula('up_limit', '(close - Delay(close, 1)) / Delay(close, 1) > 0.095',
-                                is_quarterly=False, add_data=True)
-            # 跌停
-            self.dv.add_formula('down_limit', '(close - Delay(close, 1)) / Delay(close, 1) < -0.095',
-                                is_quarterly=False, add_data=True)
-            can_enter = np.logical_and(self.dv.get_ts('up_limit') < 1, ~mask_sus)  # 未涨停未停牌
-            can_exit = np.logical_and(self.dv.get_ts('down_limit') < 1, ~mask_sus)  # 未跌停未停牌
-            return can_enter, can_exit
+    def _generate_data(self,
+                       signal,
+                       period,
+                       mask=None,
+                       can_enter=None,
+                       can_exit=None,
+                       benchmark=None,
+                       commission=0.0008):
 
-        mask = mask_index_member()
-        can_enter, can_exit = limit_up_down()
-
-        obj = SignalDigger(output_folder='./output',
-                           output_format='pdf')
-
+        obj = SignalDigger()
         # 处理因子 计算目标股票池每只股票的持有期收益，和对应因子值的quantile分类
         obj.process_signal_before_analysis(signal=signal,
-                                           price=self.dv.get_ts("close_adj").reindex_like(signal),
-                                           high=self.dv.get_ts("high_adj").reindex_like(signal),  # 可为空
-                                           low=self.dv.get_ts("low_adj").reindex_like(signal),  # 可为空
-                                           group=None,  # 可为空
-                                           n_quantiles=5,  # quantile分类数
-                                           mask=mask,  # 过滤条件
+                                           price=self.dv.get_ts("close_adj"),
+                                           high=self.dv.get_ts("high_adj"),
+                                           low=self.dv.get_ts("low_adj"),
+                                           n_quantiles=5,
+                                           mask=mask,
                                            can_enter=can_enter,  # 是否能进场
                                            can_exit=can_exit,  # 是否能出场
                                            period=period,  # 持有期
                                            benchmark_price=benchmark,  # 基准价格 可不传入，持有期收益（return）计算为绝对收益
-                                           commission=0.0008,
+                                           commission=commission,
                                            )
         return obj.signal_data
 
-    def __call__(self, period, comp=None,
-                 industry_standard="sw1", industry=None,
-                 time=None, benchmark=None):
+    def __call__(self, period, benchmark=None, commission=0.0008,
+                 industry_standard="sw1", # 行业标准
+                 cap="float_mv", # 流通市值 TODO 如果输入已经对数化了?
+                 limit_rules="A-share default", # 是否能买入 卖出 过滤等规则
+                 time=None, # 时间范围
+                 comp=None, # 指数成分范围
+                 industry=None): # 行业范围
 
-        data = self._generate_data(self.signal, period=period, benchmark=benchmark).drop("quantile", axis=1)
+        if isinstance(limit_rules, str):
+            if limit_rules == "A-share default":
+                limit_rules = self._a_share_defaut_rule()
+            else:
+                raise ValueError("only support 'A-share default' now")
+        elif isinstance(limit_rules, dict):
+            for rule in limit_rules.keys():
+                if not (rule in ["mask","can_enter","can_exit"]):
+                    raise ValueError("limit_rule的keys只能为'mask','can_enter','can_exit'")
+
+        data = self._generate_data(self.signal,
+                                   period=period,
+                                   benchmark=benchmark,
+                                   commission=commission,
+                                   **limit_rules).drop("quantile",axis=1)
 
         def del_all_zero_date(df):
             index = df["return"].groupby(level=0).transform(lambda x: x if (x != 0).all() else None).dropna().index
@@ -435,27 +474,40 @@ class Evaluator:
         data = del_all_zero_date(data)
 
         if isinstance(industry_standard, str):
+            if not (industry_standard in self.dv.fields):
+                raise ValueError("请确保dv中必须提供的行业分类标准(industry_standard)字段-%s存在!" % (industry_standard,))
             industry_standard = self.dv.get_ts(industry_standard)
-        elif isinstance(industry, pd.DataFrame):
-            industry_standard = industry_standard
+        elif isinstance(industry_standard, pd.DataFrame):
+            pass
         elif isinstance(industry_standard, pd.Series):
             industry_standard = industry_standard.unstack()
         else:
             raise ValueError("industry_standard should be one of str, DataFrame and Series")
 
+        if isinstance(cap, str):
+            if not (cap in self.dv.fields):
+                raise ValueError("请确保dv中必须提供的市值因子标准(cap)字段-%s存在!" % (cap,))
+            cap = self.dv.get_ts(cap)
+        elif isinstance(cap, pd.DataFrame):
+            pass
+        elif isinstance(cap, pd.Series):
+            cap = cap.unstack()
+        else:
+            raise ValueError("cap should be one of str, DataFrame and Series")
+
         if comp is not None:  # ("hs300", "zz500")
-            if comp == "hs300":
-                member = self.dv.get_ts('000300.SH_member').stack()
-                data = data[member == 1]
-            elif comp == "zz500":
-                member = self.dv.get_ts('000905.SH_member').stack()
+            if isinstance(comp, str):
+                field = index_map[comp] if comp in index_map.keys() else comp
+                if not (field in self.dv.fields):
+                    raise ValueError("请确保dv中必须提供的指数成分数据(comp)字段-%s存在!" % (field,))
+                member = self.dv.get_ts(field).stack()
                 data = data[member == 1]
             elif isinstance(comp, pd.DataFrame):
                 data = data[comp.stack() == 1]
             elif isinstance(comp, pd.Series):
                 data = data[comp == 1]
             else:
-                raise ValueError("only support 'hs300', 'zz500' now")
+                raise ValueError("comp should be one of str, DataFrame and Series")
 
         if industry is not None:
             assert isinstance(industry, list), "industry should be a list"
@@ -465,7 +517,10 @@ class Evaluator:
             assert isinstance(time, list), "time should be a list of tuple, e.g. [('20170101', '20170201')]"
             data = pd.concat(data.loc[(slice(start_time, end_time),), :] for start_time, end_time in time)
 
-        return Dimensions(self.dv, data, industry_standard=industry_standard, period=period)
+        return Dimensions(data,
+                          industry_standard=industry_standard,
+                          log_cap=cap.apply(np.log), # 对数流通市值,
+                          period=period)
 
     def _style_factor(self):
         pass
