@@ -1,0 +1,12 @@
+site_name: jaqs-大鱼金融fork版 文档
+pages:
+    - 主页: index.md
+    - API文档:
+        - dataview: dataview.md
+        - digger: digger/digger.md
+        - analysis: analysis.md
+        - process: process.md
+        - optimizer: optimizer.md
+        - multi_factor: multi_factor.md
+
+theme: readthedocs
