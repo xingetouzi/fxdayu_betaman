@@ -25,7 +25,6 @@ class Dimensions:
         self.industry_standard = industry_standard # 行业分类
         self.cap = log_cap  # 通常是对数流通市值
         self.period = period # 评估周期
-        self.signal_series = pd.Series()
 
         self.methods = {
             "mad": self._mad,
@@ -33,6 +32,7 @@ class Dimensions:
             "barra": partial(self._barra, cap_series=self.cap.stack()),
             "standard_scale": lambda x: pd.Series(scale(x), index=x.index, name="signal"),
         }
+
 
     def __call__(self,
                  regression_method="wls",
@@ -50,7 +50,8 @@ class Dimensions:
         :param calc_full_report: bool 是否计算完整报告 --因子日度ic 收益等
         :return:
         '''
-        signal_data = self.signal_data
+        signal_data = self.signal_data.copy()
+        self.signal_series = pd.Series()
         self.regression_preprocessing = ("mad",) # todo 支持更多预处理方法
         if regression_method == "ols":
             self.regression_method = regression_method
@@ -77,8 +78,7 @@ class Dimensions:
                                      (result[["回归系数", "回归系数 p值"]], result[["IC", "IC p值"]],
                         result[["最大回报IC", "最大回报IC p值"]], result[["最低回报IC", "最低回报IC p值"]])), axis=1)
 
-        self.signal_data_before = signal_data.copy()
-        self.signal_data["signal"] = self.signal_series
+        signal_data["signal"] = self.signal_series
 
         # 划分quantile 计算投资组合收益
         try:
@@ -102,14 +102,15 @@ class Dimensions:
         down_space_df = self._profit_df(signal_data.drop("return", axis=1).rename(columns={"downside_ret": "return"}))
 
         # profit, up_space和down_sapce里计算的因子是没做过变换的原因子
-        output = namedtuple("Output", ["coef", "stability", "profit", "up_space", "down_space", "full_report"])
+        output = namedtuple("Output", ["coef", "stability", "profit", "up_space", "down_space", "full_report", 'signal_series'])
 
         return output(
             coef=coef_df, stability=stability_df,
             profit=profit_df.rename("收益").to_frame(),
             up_space=up_space_df.rename("潜在收益").to_frame(),
             down_space=down_space_df.rename("潜在风险").to_frame(),
-            full_report=self.create_full_report() if calc_full_report else None
+            full_report=self.create_full_report() if calc_full_report else None,
+            signal_series = self.signal_series
         )
 
     def _profit_df(self, signal_data):
@@ -151,7 +152,7 @@ class Dimensions:
 
     def _stability_df_transform(self, df, pvalue_threshold=0.05):
         """
-        input dataframe should include [value, p] 
+        input dataframe should include [value, p]
         """
         name_column, p_column = df.columns
         series = pd.Series(name=name_column)
@@ -232,7 +233,7 @@ class Dimensions:
         upside_ret = X.pop("upside_ret")
         downside_ret = X.pop("downside_ret")
         ret = X.pop("return")
-        signal_series = X["signal"]
+        signal_series = df["signal"]
 
         for method in self.preprocessing:
             if method in self.methods.keys():
@@ -240,6 +241,8 @@ class Dimensions:
             elif method.startswith("neutralization"):
                 X1 = X.copy()
                 X1.update(signal_series)
+                if len(X1)==0:
+                    return (None,)*9
                 signal_series = self._ic_regression(X1, method)
             else:
                 pass
@@ -259,6 +262,8 @@ class Dimensions:
 
         self.signal_series = self.signal_series.append(signal_series)
 
+        if len(X) == 0:
+            return (None,) * 9
         X["signal"] = self.combined_method(
             list(map(lambda x: self.methods[x], self.regression_preprocessing)), X["signal"])
 
@@ -499,9 +504,10 @@ class Evaluator:
                 member = self.dv.get_ts(field)
                 data = data[member == 1].dropna(how="all",axis=0).dropna(how="all",axis=1)
             elif isinstance(comp, pd.DataFrame):
+                data = data.reindex_like(comp)
                 data = data[comp == 1].dropna(how="all",axis=0).dropna(how="all",axis=1)
             elif isinstance(comp, pd.Series):
-                data = data[comp.unstack() == 1].dropna(how="all",axis=0).dropna(how="all",axis=1)
+                data = data[comp == 1].dropna(how="all",axis=0).dropna(how="all",axis=1)
             else:
                 raise ValueError("comp should be one of str, DataFrame and Series")
 
