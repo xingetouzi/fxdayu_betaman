@@ -82,11 +82,11 @@ class Dimensions:
 
         # 划分quantile 计算投资组合收益
         try:
-            signal_data["quantile"] = signal_data["signal"].groupby(level=0).apply(pd.qcut, q=n_quantiles, labels=np.arange(n_quantiles)+1)
+            signal_data["quantile"] = signal_data["signal"].dropna().groupby(level=0).apply(pd.qcut, q=n_quantiles, labels=np.arange(n_quantiles)+1)
         except ValueError:
             print("quantile cut do not work")
             signal_data["quantile"] = 1
-        signal_data["bins"] = signal_data["signal"].groupby(level=0).apply(pd.cut, bins=n_quantiles, labels=np.arange(n_quantiles)+1)
+        signal_data["bins"] = signal_data["signal"].dropna().groupby(level=0).apply(pd.cut, bins=n_quantiles, labels=np.arange(n_quantiles)+1)
 
         # 下面先对因子做处理，可能要改，因为不确定能不能跟前面的整合
         # copy_signal_data = signal_data.copy()
@@ -157,7 +157,7 @@ class Dimensions:
         name_column, p_column = df.columns
         series = pd.Series(name=name_column)
         length = df.shape[0]
-        df = df[df[p_column] <= pvalue_threshold].drop(p_column, axis=1).squeeze()
+        df = df[df[p_column] <= pvalue_threshold].drop(p_column, axis=1).squeeze(1)
         ratio = (df.shape[0])/length
         series["正相关显著比例"] = (df > 0).mean()
         series["负相关显著比例"] = (df < 0).mean()
