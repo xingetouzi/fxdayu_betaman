@@ -395,16 +395,30 @@ class Dimensions:
 
 class Evaluator:
 
-    def __init__(self, dv, signal):
+    def __init__(self, dv, signal,
+                 limit_rules="A-share default", # 是否能买入 卖出 过滤等规则
+                 ):
         '''
         :param dv: jaqs.dataview
         :param signal: pd.DataFrame
+        :param limit_rules: 限制条件 dict {mask,can_enter,can_exit}
         '''
         self.dv = dv
         self.signal = signal
         for field in ["trade_status","close_adj","high_adj","low_adj"]:
             if field not in self.dv.fields:
                 raise ValueError("请确保dv中必须提供的字段-%s存在!" % (field,))
+
+        if isinstance(limit_rules, str):
+            if limit_rules == "A-share default":
+                self.limit_rules = self._a_share_defaut_rule()
+            else:
+                raise ValueError("limit rules only support 'A-share default' now")
+        elif isinstance(limit_rules, dict):
+            for rule in limit_rules.keys():
+                if not (rule in ["mask","can_enter","can_exit"]):
+                    raise ValueError("limit_rule的keys只能为'mask','can_enter','can_exit'")
+            self.limit_rules = limit_rules
 
     def _a_share_defaut_rule(self):
         trade_status = self.dv.get_ts('trade_status')
@@ -461,7 +475,6 @@ class Evaluator:
     def __call__(self, period, benchmark=None, commission=0.0008,
                  industry_standard="sw1", # 行业标准
                  cap="float_mv", # 流通市值 TODO 如果输入已经对数化了?
-                 limit_rules="A-share default", # 是否能买入 卖出 过滤等规则
                  time=None, # 时间范围
                  comp=None, # 指数成分范围
                  industry=None): # 行业范围
@@ -471,35 +484,26 @@ class Evaluator:
         :param commission:双边手续费率 float 默认0.0008
         :param industry_standard:行业标准 str/pd.DataFrame/pd.Series
         :param cap:流通市值 str/pd.DataFrame/pd.Series
-        :param limit_rules: 限制条件 dict {mask,can_enter,can_exit}
         :param time:list of tuple, e.g. [('20170101', '20170201')]
         :param comp:指数成分 只针对该成分股票进行评估 str/pd.DataFrame/pd.Series
         :param industry:行业成分 list 只针对该行业成分股票进行评估 行业元素需包含在设置的行业标准中
         :return:
         '''
+        data = self.signal.copy()
 
-        if isinstance(limit_rules, str):
-            if limit_rules == "A-share default":
-                limit_rules = self._a_share_defaut_rule()
+        if comp is not None:  # ("hs300", "zz500")
+            if isinstance(comp, str):
+                field = index_map[comp] if comp in index_map.keys() else comp
+                if not (field in self.dv.fields):
+                    raise ValueError("请确保dv中必须提供的指数成分数据(comp)字段-%s存在!" % (field,))
+                member = self.dv.get_ts(field)
+                data = data[member == 1].dropna(how="all",axis=0).dropna(how="all",axis=1)
+            elif isinstance(comp, pd.DataFrame):
+                data = data[comp == 1].dropna(how="all",axis=0).dropna(how="all",axis=1)
+            elif isinstance(comp, pd.Series):
+                data = data[comp.unstack() == 1].dropna(how="all",axis=0).dropna(how="all",axis=1)
             else:
-                raise ValueError("limit rules only support 'A-share default' now")
-        elif isinstance(limit_rules, dict):
-            for rule in limit_rules.keys():
-                if not (rule in ["mask","can_enter","can_exit"]):
-                    raise ValueError("limit_rule的keys只能为'mask','can_enter','can_exit'")
-
-        data = self._generate_data(self.signal,
-                                   period=period,
-                                   benchmark=benchmark,
-                                   commission=commission,
-                                   **limit_rules).drop("quantile",axis=1)
-
-        # print(data)
-
-        def del_all_zero_date(df):
-            index = df["return"].groupby(level=0).transform(lambda x: x if (x != 0).any() else None).dropna().index
-            return df.reindex(index)
-        data = del_all_zero_date(data)
+                raise ValueError("comp should be one of str, DataFrame and Series")
 
         if isinstance(industry_standard, str):
             if not (industry_standard in self.dv.fields):
@@ -512,6 +516,10 @@ class Evaluator:
         else:
             raise ValueError("industry_standard should be one of str, DataFrame and Series")
 
+        if industry is not None:
+            assert isinstance(industry, list), "industry should be a list"
+            data = data[industry_standard.isin(industry)].dropna(how="all",axis=0).dropna(how="all",axis=1)
+
         if isinstance(cap, str):
             if not (cap in self.dv.fields):
                 raise ValueError("请确保dv中必须提供的市值因子标准(cap)字段-%s存在!" % (cap,))
@@ -523,23 +531,19 @@ class Evaluator:
         else:
             raise ValueError("cap should be one of str, DataFrame and Series")
 
-        if comp is not None:  # ("hs300", "zz500")
-            if isinstance(comp, str):
-                field = index_map[comp] if comp in index_map.keys() else comp
-                if not (field in self.dv.fields):
-                    raise ValueError("请确保dv中必须提供的指数成分数据(comp)字段-%s存在!" % (field,))
-                member = self.dv.get_ts(field).stack()
-                data = data[member == 1]
-            elif isinstance(comp, pd.DataFrame):
-                data = data[comp.stack() == 1]
-            elif isinstance(comp, pd.Series):
-                data = data[comp == 1]
-            else:
-                raise ValueError("comp should be one of str, DataFrame and Series")
+        cap = cap.reindex_like(data)
+        industry_standard = industry_standard.reindex_like(data)
 
-        if industry is not None:
-            assert isinstance(industry, list), "industry should be a list"
-            data = data[industry_standard.stack().isin(industry)]
+        data = self._generate_data(data,
+                                   period=period,
+                                   benchmark=benchmark,
+                                   commission=commission,
+                                   **self.limit_rules).drop("quantile",axis=1)
+
+        def del_all_zero_date(df):
+            index = df["return"].groupby(level=0).transform(lambda x: x if (x != 0).any() else None).dropna().index
+            return df.reindex(index)
+        data = del_all_zero_date(data)
 
         if time is not None:
             assert isinstance(time, list), "time should be a list of tuple, e.g. [('20170101', '20170201')]"

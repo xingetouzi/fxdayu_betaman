@@ -39,7 +39,6 @@ dms = evaluator(period=15,
                 commission=0.0008,
                 industry_standard="sw1", # 行业标准
                 cap="float_mv", # 流通市值
-                limit_rules="A-share default", # 是否能买入 卖出 过滤等规则
                 time=[(20170601,20170901)], # 时间范围
                 comp=dv.get_ts("index_member"), # 指数成分范围
                 industry=['480000','430000'])
