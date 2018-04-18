@@ -265,7 +265,6 @@ class Evaluator:
         data = self._generate_data(data,
                                    period=period,
                                    mask=self.limit_rules["mask"])
-
         def del_all_zero_date(df):
             index = df["return"].groupby(level=0).transform(lambda x: x if (x != 0).any() else None).dropna().index
             return df.reindex(index)
@@ -275,8 +274,14 @@ class Evaluator:
             assert isinstance(time, list), "time should be a list of tuple, e.g. [('20170101', '20170201')]"
             data = pd.concat(data.loc[(slice(start_time, end_time),), :] for start_time, end_time in time)
 
-
-        return Dimensions(data, period)
+        if data is None or data.size==0:
+            print("该时段的数据为空,无法进行评估.请确保提供包含了选定的测试时间段的数据.")
+            return None
+        else:
+            if len(data.index.levels[1])<3:
+                print("数据集中股票数过少(小于3只),无法体现选股区分度！不进行评估.")
+                return None
+            return Dimensions(data, period)
 
     def get_ret(self, period):
         if period in self.signal_ret.keys():
