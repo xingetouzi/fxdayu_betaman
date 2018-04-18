@@ -1,6 +1,5 @@
 # 重构主要是从全市场算ic，然后算各细分范围的ic效果
 
-from jaqs_fxdayu.research import SignalDigger
 from jaqs_fxdayu.research.signaldigger import performance as pfm
 from jaqs_fxdayu.research.signaldigger.analysis import compute_downside_returns, compute_upside_returns
 import jaqs_fxdayu.util as jutil
@@ -272,10 +271,10 @@ class Evaluator:
             return df.reindex(index)
 
         data = del_all_zero_date(data)
-
         if time is not None:
             assert isinstance(time, list), "time should be a list of tuple, e.g. [('20170101', '20170201')]"
             data = pd.concat(data.loc[(slice(start_time, end_time),), :] for start_time, end_time in time)
+
 
         return Dimensions(data, period)
 
@@ -293,10 +292,10 @@ class Evaluator:
             price = jutil.fillinf(price)
             df_ret = pfm.price2ret(price, period=period, axis=0, compound=True)
             price_can_exit = price.copy()
-            price_can_exit[can_exit] = np.NaN
+            price_can_exit[~can_exit] = np.NaN
             price_can_exit = price_can_exit.fillna(method="bfill")
             ret_can_exit = pfm.price2ret(price_can_exit, period=period, axis=0, compound=True)
-            df_ret[can_exit] = ret_can_exit[can_exit]
+            df_ret[~can_exit] = ret_can_exit[~can_exit]
             if self.benchmark is not None:
                 benchmark_price = self.benchmark.loc[price.index]
                 bench_ret = pfm.price2ret(benchmark_price, period, axis=0, compound=True)
