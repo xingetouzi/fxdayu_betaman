@@ -1,8 +1,9 @@
 # 重构主要是从全市场算ic，然后算各细分范围的ic效果
 
-import jaqs_fxdayu
 from jaqs_fxdayu.research import SignalDigger
 from jaqs_fxdayu.research.signaldigger import performance as pfm
+from jaqs_fxdayu.research.signaldigger.analysis import compute_downside_returns, compute_upside_returns
+import jaqs_fxdayu.util as jutil
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import scale
@@ -21,7 +22,7 @@ index_map = {
 
 class Evaluator:
 
-    def __init__(self, dv, signal, limit_rules="A-share default"):
+    def __init__(self, dv, limit_rules="A-share default", benchmark=None, commission=0.0008):
         """
         :param dv: jaqs.dataview
         :param signal: pd.DataFrame
@@ -29,8 +30,8 @@ class Evaluator:
         """
 
         self.dv = dv
-        self._signal = signal if isinstance(signal, pd.Series) else signal.stack()
-        self._signal = self._signal.rename("signal")
+        self.benchmark = benchmark
+        self.commission = commission
         self.methods = {
             "mad": self._mad,
             "winsorize": self._winsorize,
@@ -41,7 +42,9 @@ class Evaluator:
         self._industry_standard = None
         self._style = None
         self.data = None
+        self._signal = None
         self.residuals = None
+        self.signal_ret = dict()
 
         # =========================================================================================
         for field in ["trade_status", "close_adj", "high_adj", "low_adj"]:
@@ -52,12 +55,44 @@ class Evaluator:
             if limit_rules == "A-share default":
                 self.limit_rules = self._a_share_default_rule()
             else:
-                raise ValueError("limit rules only support 'A-share default' now")
+                raise ValueError("limit_rules only support 'A-share default' now")
         elif isinstance(limit_rules, dict):
             for rule in limit_rules.keys():
                 if not (rule in ["mask", "can_enter", "can_exit"]):
                     raise ValueError("limit_rule的keys只能为'mask','can_enter','can_exit'")
             self.limit_rules = limit_rules
+        else:
+            raise ValueError("Type of limit_rules can only be dict or str.")
+
+        if "can_exit" in self.limit_rules.keys():
+            if self.limit_rules["can_exit"] is not None:
+                self.limit_rules["can_exit"] = jutil.fillinf(self.limit_rules["can_exit"]).astype(int).fillna(0).astype(bool)
+            else:
+                self.limit_rules["can_exit"] = pd.DataFrame(index=self.dv.get_ts("close_adj").index,
+                                                            columns=self.dv.get_ts("close_adj").columns,
+                                                            data=True)
+        else:
+            self.limit_rules["can_exit"] = pd.DataFrame(index=self.dv.get_ts("close_adj").index,
+                                                        columns=self.dv.get_ts("close_adj").columns,
+                                                        data=True)
+
+        if "mask" in self.limit_rules.keys():
+            if self.limit_rules["mask"] is not None:
+                self.limit_rules["mask"] = jutil.fillinf(self.limit_rules["mask"]).astype(int).fillna(0).astype(bool)
+            else:
+                self.limit_rules["mask"] = pd.DataFrame(index=self.dv.get_ts("close_adj").index,
+                                                        columns=self.dv.get_ts("close_adj").columns,
+                                                        data=False)
+        else:
+            self.limit_rules["mask"] = pd.DataFrame(index=self.dv.get_ts("close_adj").index,
+                                                    columns=self.dv.get_ts("close_adj").columns,
+                                                    data=False)
+
+        if "can_enter" in self.limit_rules.keys():
+            if self.limit_rules["can_enter"] is not None:
+                self.limit_rules["can_enter"] = jutil.fillinf(self.limit_rules["can_enter"]).astype(int).fillna(0).astype(bool)
+                self.limit_rules["mask"] = np.logical_or(self.limit_rules["mask"], ~(self.limit_rules["can_enter"]))
+                del self.limit_rules["can_enter"]
 
     def _a_share_default_rule(self):
         trade_status = self.dv.get_ts('trade_status')
@@ -76,25 +111,23 @@ class Evaluator:
             "mask": None,
         }
 
-    def generate_residuals(self, style="float_mv", industry_standard="sw1", cap="float_mv",
-                    preprocessing=("mad", "neutralization", "standard_scale")):  # 行业范围
-        """
-        主要用作对因子对中性化。。。
-        :param period: 评估周期 int
-        :param benchmark: 指数价格 pd.DataFrame/pd.Series
-        :param commission:双边手续费率 float 默认0.0008
-        :param industry_standard:行业标准 str/pd.DataFrame/pd.Series
-        :param cap:流通市值 str/pd.DataFrame/pd.Series
-        :param time:list of tuple, e.g. [('20170101', '20170201')]
-        :param comp:指数成分 只针对该成分股票进行评估 str/pd.DataFrame/pd.Series
-        :param industry:行业成分 list 只针对该行业成分股票进行评估 行业元素需包含在设置的行业标准中
+    def generate_residuals(self, signal, style="float_mv", industry_standard="sw1", cap="float_mv",
+                           preprocessing=("mad", "neutralization", "standard_scale")):
+        '''
+        :param signal:
+        :param style:
+        :param industry_standard:
+        :param cap:
+        :param preprocessing:
         :return:
-        """
+        '''
 
+        self._signal = signal if isinstance(signal, pd.Series) else signal.stack()
+        self._signal = self._signal.rename("signal")
         # self.style_factor = None  # 还没想好方案, 市值
         if isinstance(style, str):
             if not (style in self.dv.fields):
-                raise ValueError("请确保dv中必须提供的市值因子标准(cap)字段-%s存在!" % (style,))
+                raise ValueError("请确保dv中提供了风格因子(style)字段-%s存在!" % (style,))
             self._style = self.dv.get_ts(style).stack().apply(np.log)  # Attention!
         elif style is None:
             raise ValueError("not yet ready for complete Barra style factors")
@@ -103,12 +136,11 @@ class Evaluator:
         elif isinstance(style, pd.Series):
             pass
         else:
-            raise ValueError("cap should be one of str, DataFrame and Series")
+            raise ValueError("style should be one of str, DataFrame and Series")
 
-        self._cap = self.dv.get_ts(cap)
         if isinstance(cap, str):
             if not (cap in self.dv.fields):
-                raise ValueError("请确保dv中必须提供的市值因子标准(cap)字段-%s存在!" % (cap,))
+                raise ValueError("请确保dv中提供了市值因子(cap)字段-%s存在!" % (cap,))
             self._cap = self.dv.get_ts(cap).stack()
         elif isinstance(cap, pd.DataFrame):
             self._cap = self._cap.stack()
@@ -120,7 +152,7 @@ class Evaluator:
 
         if isinstance(industry_standard, str):  # str的话只支持一个指标
             if not (industry_standard in self.dv.fields):
-                raise ValueError("请确保dv中必须提供的行业分类标准(industry_standard)字段-%s存在!" % (industry_standard,))
+                raise ValueError("请确保dv中提供了行业分类标准(industry_standard)字段-%s存在!" % (industry_standard,))
             self._industry_standard = self.dv.get_ts(industry_standard).stack()
         elif isinstance(industry_standard, pd.DataFrame):
             self._industry_standard = industry_standard.stack()
@@ -207,9 +239,8 @@ class Evaluator:
 
     def generate_dimensions(self, period,
                             time=None,  # 时间范围
-                            comp=None,  # 指数成分范围
-                            industry=None,
-                            benchmark=None, commission=0.0008):
+                            comp=None,  # 板块/指数成分范围
+                            industry=None): # 行业范围
 
         data = self.residuals.unstack()
 
@@ -234,9 +265,7 @@ class Evaluator:
 
         data = self._generate_data(data,
                                    period=period,
-                                   benchmark=benchmark,
-                                   commission=commission,
-                                   **self.limit_rules).drop("quantile", axis=1)
+                                   mask=self.limit_rules["mask"])
 
         def del_all_zero_date(df):
             index = df["return"].groupby(level=0).transform(lambda x: x if (x != 0).any() else None).dropna().index
@@ -250,41 +279,95 @@ class Evaluator:
 
         return Dimensions(data, period)
 
+    def get_ret(self, period):
+        if period in self.signal_ret.keys():
+            return self.signal_ret[period]
+        else:
+            # prepare data
+            price = self.dv.get_ts("close_adj")
+            high = self.dv.get_ts("high_adj")
+            low = self.dv.get_ts("low_adj")
+            can_exit = self.limit_rules["can_exit"]
+
+            # 持有期收益
+            price = jutil.fillinf(price)
+            df_ret = pfm.price2ret(price, period=period, axis=0, compound=True)
+            price_can_exit = price.copy()
+            price_can_exit[can_exit] = np.NaN
+            price_can_exit = price_can_exit.fillna(method="bfill")
+            ret_can_exit = pfm.price2ret(price_can_exit, period=period, axis=0, compound=True)
+            df_ret[can_exit] = ret_can_exit[can_exit]
+            if self.benchmark is not None:
+                benchmark_price = self.benchmark.loc[price.index]
+                bench_ret = pfm.price2ret(benchmark_price, period, axis=0, compound=True)
+                residual_ret = df_ret.sub(bench_ret.values.flatten(), axis=0)
+            else:
+                residual_ret = df_ret
+            residual_ret = jutil.fillinf(residual_ret)
+            residual_ret -= self.commission
+
+            # 计算潜在上涨空间和潜在下跌空间
+            high = jutil.fillinf(high)
+            upside_ret = compute_upside_returns(price, high, can_exit, period,
+                                                compound=True)
+            upside_ret = jutil.fillinf(upside_ret)
+            upside_ret -= self.commission
+            low = jutil.fillinf(low)
+            downside_ret = compute_downside_returns(price, low, can_exit, period,
+                                                    compound=True)
+            downside_ret = jutil.fillinf(downside_ret)
+            downside_ret -= self.commission
+
+            self.signal_ret[period] = {
+                "return": residual_ret.shift(-period),
+                "upside_ret": upside_ret.shift(-period),
+                "downside_ret": downside_ret.shift(-period)
+            }
+            return self.signal_ret[period]
+
     # 后面
     def _generate_data(self,
                        signal,
                        period,
-                       mask=None,
-                       can_enter=None,
-                       can_exit=None,
-                       benchmark=None,
-                       commission=0.0008):
+                       mask):
         '''
         :param signal:
-        :param period:
+        :param period: int
         :param mask:
-        :param can_enter:
-        :param can_exit:
-        :param benchmark:
-        :param commission:
         :return:
+            signal_data
         '''
 
-        obj = SignalDigger()
-        # 处理因子 计算目标股票池每只股票的持有期收益，和对应因子值的quantile分类
-        obj.process_signal_before_analysis(signal=signal,
-                                           price=self.dv.get_ts("close_adj").reindex_like(signal),
-                                           high=self.dv.get_ts("high_adj").reindex_like(signal),
-                                           low=self.dv.get_ts("low_adj").reindex_like(signal),
-                                           n_quantiles=5,
-                                           mask=mask.reindex_like(signal) if mask is not None else None,
-                                           can_enter=can_enter.reindex_like(signal) if can_enter is not None else None,  # 是否能进场
-                                           can_exit=can_exit.reindex_like(signal) if can_exit is not None else None,  # 是否能出场
-                                           period=period,  # 持有期
-                                           benchmark_price=benchmark,  # 基准价格 可不传入，持有期收益（return）计算为绝对收益
-                                           commission=commission,
-                                           )
-        return obj.signal_data
+        signal = jutil.fillinf(signal).shift(1)
+        rets = self.get_ret(period)
+        mask = mask.reindex_like(signal)
+
+        mask_signal = signal.isnull()
+        mask = np.logical_or(mask.fillna(False), mask_signal)
+
+        def stack_td_symbol(df):
+            df = pd.DataFrame(df.stack(dropna=False))  # do not dropna
+            df.index.names = ['trade_date', 'symbol']
+            df.sort_index(axis=0, level=['trade_date', 'symbol'], inplace=True)
+            return df
+
+        # ----------------------------------------------------------------------
+        # concat signal value
+        res = stack_td_symbol(signal)
+        res.columns = ['signal']
+        for ret_type in rets.keys():
+            res[ret_type] = stack_td_symbol(rets[ret_type].reindex_like(signal)).fillna(0)  # 收益
+
+        mask = stack_td_symbol(mask)
+        res = res.loc[~(mask.iloc[:, 0]), :]
+
+        if len(res) > 0:
+            print("Nan Data Count (should be zero) : {:d};  " \
+                  "Percentage of effective data: {:.0f}%".format(res.isnull().sum(axis=0).sum(),
+                                                                 len(res) * 100. / signal.size))
+        else:
+            print("No signal available.")
+        return res
 
 
 class Dimensions:
