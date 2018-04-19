@@ -4,8 +4,10 @@ from jaqs_fxdayu.research.signaldigger import performance as pfm
 from jaqs_fxdayu.research.signaldigger import process
 from jaqs_fxdayu.research.signaldigger.analysis import compute_downside_returns, compute_upside_returns
 import jaqs_fxdayu.util as jutil
+from jaqs_fxdayu.research.signaldigger import plotting
 import pandas as pd
 import numpy as np
+import os
 from sklearn.preprocessing import scale
 from scipy.stats import spearmanr, ttest_1samp
 from functools import partial
@@ -385,8 +387,21 @@ class Evaluator:
 class Dimensions:
 
     def __init__(self, signal, period):
-        self.signal_data = signal
+        self.signal = signal
         self.period = period
+        self.signal_data = None
+        self.full_report_data = None
+
+    def get_signal_data(self, n_quantiles=10):
+        signal_data = self.signal.copy()
+        # 划分 quantile 计算投资组合收益
+        try:
+            signal_data["quantile"] = signal_data["signal"].dropna().groupby(level=0).apply(pd.qcut, q=n_quantiles, labels=np.arange(n_quantiles)+1)
+        except ValueError:
+            print("quantile cut do not work")
+            signal_data["quantile"] = 1
+        signal_data["bins"] = signal_data["signal"].dropna().groupby(level=0).apply(pd.cut, bins=n_quantiles, labels=np.arange(n_quantiles)+1)
+        return signal_data
 
     def _result(self, df):
         # for date, dataframe in grouped:
@@ -409,21 +424,12 @@ class Dimensions:
 
     def __call__(self,
                  p_threshold=0.05,
-                 n_quantiles=10,
-                 calc_full_report=False):
-
+                 n_quantiles=None):
         '''
-        :param regression_method: 回归方法 目前仅支持 ols wls
-        :param preprocessing: tuple,分别代表因子数据预处理的方法,按顺序依次执行.一般依次为去极值,中性化,标准化
-                                      支持neutralization_both, neutralization_cap, neutralization_industry三种中性化方法
         :param p_threshold: float 显著性水平标准 通常为0.05
-        :param n_quantiles: int quantile 分类数 默认10
-        :param calc_full_report: bool 是否计算完整报告 --因子日度ic 收益等
         :return:
         '''
-
-        signal_data = self.signal_data
-        result = self._result(signal_data)
+        result = self._result(self.signal)
 
         # 预测能力绩效评估表
         coef_df = pfm.calc_ic_stats_table(result[["IC", "最大回报IC", "最低回报IC"]]).rename(
@@ -437,13 +443,14 @@ class Dimensions:
 
 
         # 划分 quantile 计算投资组合收益
-        try:
-            signal_data["quantile"] = signal_data["signal"].dropna().groupby(level=0).apply(pd.qcut, q=n_quantiles, labels=np.arange(n_quantiles)+1)
-        except ValueError:
-            print("quantile cut do not work")
-            signal_data["quantile"] = 1
-        signal_data["bins"] = signal_data["signal"].dropna().groupby(level=0).apply(pd.cut, bins=n_quantiles, labels=np.arange(n_quantiles)+1)
-
+        if isinstance(n_quantiles,int):
+            signal_data = self.get_signal_data(n_quantiles)
+        elif n_quantiles is None:
+            if self.signal_data is None:
+                self.signal_data = self.get_signal_data()
+            signal_data = self.signal_data
+        else:
+            raise ValueError("Type of n_quantiles must be int.")
         # 下面先对因子做处理，可能要改，因为不确定能不能跟前面的整合
         # copy_signal_data = signal_data.copy()
         # copy_signal_data["signal"] = self.signal_for_ic
@@ -458,14 +465,13 @@ class Dimensions:
         down_space_df = self._profit_df(signal_data.drop("return", axis=1).rename(columns={"downside_ret": "return"}))
 
         # profit, up_space和down_sapce里计算的因子是没做过变换的原因子
-        output = namedtuple("Output", ["coef", "stability", "profit", "up_space", "down_space", "full_report"])
+        output = namedtuple("Output", ["coef", "stability", "profit", "up_space", "down_space"])
 
         return output(
             coef=coef_df, stability=stability_df,
             profit=profit_df.rename("收益").to_frame(),
             up_space=up_space_df.rename("潜在收益").to_frame(),
             down_space=down_space_df.rename("潜在风险").to_frame(),
-            full_report=self.create_full_report() if calc_full_report else None,
         )
 
     def _profit_df(self, signal_data):
@@ -558,7 +564,7 @@ class Dimensions:
                                   ["均值", "标准差", "均值/标准差", "t值", "p值"]]))
         return pd.concat([to_concated1, to_concated2, to_concated3])
 
-    def create_returns_report(self):
+    def get_returns_report_data(self):
         """
         Creates a tear sheet for returns analysis of a signal.
 
@@ -574,16 +580,6 @@ class Dimensions:
             pfm.calc_period_wise_weighted_signal_return(self.signal_data, weight_method='short_only')
         cum_long_ret = pfm.period_wise_ret_to_cum(period_wise_long_ret, period=self.period, compound=True)
         cum_short_ret = pfm.period_wise_ret_to_cum(period_wise_short_ret, period=self.period, compound=True)
-        # period_wise_ret_by_regression = perf.regress_period_wise_signal_return(signal_data)
-        # period_wise_ls_signal_ret = \
-        #     pfm.calc_period_wise_weighted_signal_return(signal_data, weight_method='long_short')
-        # daily_ls_signal_ret = pfm.period2daily(period_wise_ls_signal_ret, period=period)
-        # ls_signal_ret_cum = pfm.daily_ret_to_cum(daily_ls_signal_ret)
-
-        # ----------------------------------------------------------------------------------
-        # Period-wise Quantile Return Time Series
-        # We calculate quantile return using equal weight or market value weight.
-        # Quantile is already obtained according to signal values.
 
         # quantile return
         period_wise_quantile_ret_stats = pfm.calc_quantile_return_mean_std(self.signal_data, time_series=True)
@@ -596,14 +592,14 @@ class Dimensions:
                                                             period_wise_quantile_ret_stats[1])
         cum_tmb_ret = pfm.period_wise_ret_to_cum(period_wise_tmb_ret['mean_diff'], period=self.period, compound=True)
 
-        self.returns_report_data = {'period_wise_quantile_ret': period_wise_quantile_ret_stats,
-                                    'cum_quantile_ret': cum_quantile_ret,
-                                    'cum_long_ret': cum_long_ret,
-                                    'cum_short_ret': cum_short_ret,
-                                    'period_wise_tmb_ret': period_wise_tmb_ret,
-                                    'cum_tmb_ret': cum_tmb_ret}
+        return {'period_wise_quantile_ret': period_wise_quantile_ret_stats,
+                'cum_quantile_ret': cum_quantile_ret,
+                'cum_long_ret': cum_long_ret,
+                'cum_short_ret': cum_short_ret,
+                'period_wise_tmb_ret': period_wise_tmb_ret,
+                'cum_tmb_ret': cum_tmb_ret}
 
-    def create_information_report(self):
+    def get_information_report_data(self):
         """
         Creates a tear sheet for information analysis of a signal.
 
@@ -611,23 +607,108 @@ class Dimensions:
         ic = pfm.calc_signal_ic(self.signal_data)
         ic.index = pd.to_datetime(ic.index, format="%Y%m%d")
         monthly_ic = pfm.mean_information_coefficient(ic, "M")
-        self.ic_report_data = {'daily_ic': ic,
-                               'monthly_ic': monthly_ic}
+        return {'daily_ic': ic,
+                'monthly_ic': monthly_ic}
 
-    def create_full_report(self):
+    def get_full_report_data(self,
+                             n_quantiles=None):
         """
         Creates a full tear sheet for analysis and evaluating single
         return predicting (alpha) signal.
 
         """
-        # signal quantile description statistics
-        self.create_returns_report()
-        self.create_information_report()
-        # we do not do turnover analysis for now
-        # self.create_turnover_report(signal_data)
+        if isinstance(n_quantiles,int):
+            self.signal_data = self.get_signal_data(n_quantiles)
+        elif n_quantiles is None:
+            if self.signal_data is None:
+                self.signal_data = self.get_signal_data()
+            elif self.full_report_data is not None:
+                return self.full_report_data
+        else:
+            raise ValueError("Type of n_quantiles must be int.")
 
         res = dict()
-        res.update(self.returns_report_data)
-        res.update(self.ic_report_data)
-        return res
+        res.update(self.get_returns_report_data())
+        res.update(self.get_information_report_data())
+        self.full_report_data = res
+        return self.full_report_data
+
+    def show_fig(self, fig, file_name, output_folder=".", output_format="pdf"):
+        """
+        Save fig object to self.output_folder/filename.
+
+        Parameters
+        ----------
+        fig : matplotlib.figure.Figure
+        file_name : str
+
+        """
+        if output_format in ['pdf', 'png', 'jpg']:
+            fp = os.path.join(output_folder, '.'.join([file_name, output_format]))
+            jutil.create_dir(fp)
+            fig.savefig(fp)
+            print("Figure saved: {}".format(fp))
+        elif output_format == 'plot':
+            fig.show()
+        else:
+            raise NotImplementedError("output_format = {}".format(output_format))
+
+    def draw_pic(self,
+                 output_folder=".",
+                 output_format="pdf",
+                 full_report_data=None):
+
+        if full_report_data is None:
+            full_report_data = self.get_full_report_data()
+
+        # 画收益图
+        vertical_sections = 6
+        gf = plotting.GridFigure(rows=vertical_sections, cols=1)
+        gf.fig.suptitle("Returns Tear Sheet\n\n(no compound)\n (period length = {:d} days)".format(self.period))
+
+        plotting.plot_quantile_returns_ts(full_report_data['period_wise_quantile_ret'],
+                                          ax=gf.next_row())
+
+        plotting.plot_cumulative_returns_by_quantile(full_report_data['cum_quantile_ret'],
+                                                     ax=gf.next_row())
+
+        plotting.plot_cumulative_return(full_report_data['cum_long_ret'],
+                                        title="Signal Weighted Long Only Portfolio Cumulative Return",
+                                        ax=gf.next_row())
+
+        plotting.plot_cumulative_return(full_report_data['cum_short_ret'],
+                                        title="Signal Weighted Short Only Portfolio Cumulative Return",
+                                        ax=gf.next_row())
+
+        plotting.plot_mean_quantile_returns_spread_time_series(full_report_data['period_wise_tmb_ret'], self.period,
+                                                               bandwidth=0.5,
+                                                               ax=gf.next_row())
+
+        plotting.plot_cumulative_return(full_report_data['cum_tmb_ret'],
+                                        title="Top Minus Bottom (long top, short bottom)"
+                                              "Portfolio Cumulative Return",
+                                        ax=gf.next_row())
+
+        self.show_fig(gf.fig, 'returns_report',
+                      output_folder=output_folder,
+                      output_format=output_format)
+
+        # 画IC图
+        columns_wide = 2
+        fr_cols = len(full_report_data['daily_ic'])
+        rows_when_wide = (((fr_cols - 1) // columns_wide) + 1)
+        vertical_sections = fr_cols + 3 * rows_when_wide + 2 * fr_cols
+        gf = plotting.GridFigure(rows=vertical_sections, cols=columns_wide)
+        gf.fig.suptitle("Information Coefficient Report\n\n(period length = {:d} days)"
+                        "\ndaily IC = rank_corr(period-wise forward return, signal value)".format(self.period))
+
+        plotting.plot_ic_ts(full_report_data['daily_ic'], self.period, ax=gf.next_row())
+        plotting.plot_ic_hist(full_report_data['daily_ic'], self.period, ax=gf.next_row())
+        plotting.plot_monthly_ic_heatmap(full_report_data['monthly_ic'], period=self.period, ax=gf.next_row())
+
+        self.show_fig(gf.fig, 'information_report',
+                      output_folder=output_folder,
+                      output_format=output_format
+                      )
+
 
