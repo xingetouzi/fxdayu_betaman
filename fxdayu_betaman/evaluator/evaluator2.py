@@ -1,6 +1,7 @@
 # 重构主要是从全市场算ic，然后算各细分范围的ic效果
 
 from jaqs_fxdayu.research.signaldigger import performance as pfm
+from jaqs_fxdayu.research.signaldigger import process
 from jaqs_fxdayu.research.signaldigger.analysis import compute_downside_returns, compute_upside_returns
 import jaqs_fxdayu.util as jutil
 import pandas as pd
@@ -36,6 +37,7 @@ class Evaluator:
             "winsorize": self._winsorize,
             "barra": self._barra,
             "standard_scale": lambda x: pd.Series(scale(x), index=x.index, name="signal"),
+            "standardize":self._standardize,
         }
         self._cap = None
         self._industry_standard = None
@@ -110,8 +112,11 @@ class Evaluator:
             "mask": None,
         }
 
-    def generate_residuals(self, signal, style="float_mv", industry_standard="sw1", cap="float_mv",
-                           preprocessing=("mad", "neutralization", "standard_scale")):
+    def generate_residuals(self, signal,
+                           style="float_mv",
+                           industry_standard="sw1",
+                           cap="float_mv",
+                           preprocessing=("mad", "neutralization", "standardize")):
         '''
         :param signal:
         :param style:
@@ -127,16 +132,20 @@ class Evaluator:
         if isinstance(style, str):
             if not (style in self.dv.fields):
                 raise ValueError("请确保dv中提供了风格因子(style)字段-%s存在!" % (style,))
-            self._style = self.dv.get_ts(style).stack().apply(np.log)  # Attention!
+            self._style = np.log(self.dv.get_ts(style))  # Attention!
         elif style is None:
             raise ValueError("not yet ready for complete Barra style factors")
-        elif isinstance(style, pd.DataFrame):  # 为什么需要的DataFrame我给忘了
-            self._style = style.stack()
+        elif isinstance(style, pd.DataFrame):  # 为什么需要DataFrame我给忘了
+            self._style = style
         elif isinstance(style, pd.Series):
-            pass
+            self._style = style.unstack()
         else:
             raise ValueError("style should be one of str, DataFrame and Series")
 
+        # 风格因子去极值标准化
+        self._style = process.standardize(process.mad(self._style)).stack().rename("style")
+
+        # 用于barra标准化
         if isinstance(cap, str):
             if not (cap in self.dv.fields):
                 raise ValueError("请确保dv中提供了市值因子(cap)字段-%s存在!" % (cap,))
@@ -156,17 +165,17 @@ class Evaluator:
         elif isinstance(industry_standard, pd.DataFrame):
             self._industry_standard = industry_standard.stack()
         elif isinstance(industry_standard, pd.Series):
-            pass
+            self._industry_standard = industry_standard
         else:
             raise ValueError("industry_standard should be one of str, DataFrame and Series")
 
-        def drop_sw1_nan(s):
+        def drop_nan(s):
             """
             主要是有一支'000748.SZ'的股票 
             """
             return s[s != "nan"]
 
-        self._industry_standard = drop_sw1_nan(self._industry_standard).rename("industry")
+        self._industry_standard = drop_nan(self._industry_standard).rename("industry")
 
         self.data = pd.concat([self._signal, self._style, self._industry_standard], axis=1).dropna()
         # ===========================================上面预处理======================================================
@@ -202,6 +211,12 @@ class Evaluator:
         median = series.median()
         mad = (series-median).abs().median()
         return series.clip(median-5*mad, median+5*mad)  # .rename("signal")
+
+    @staticmethod
+    def _standardize(se):
+        se_std = se.std()
+        se_mean = se.mean()
+        return (se - se_mean) / se_std
 
     @staticmethod
     def _winsorize(series):
