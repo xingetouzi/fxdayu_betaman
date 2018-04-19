@@ -193,16 +193,9 @@ class Evaluator:
         """
         x 应该是3000*40的格式
         """
-        if len(x.shape) == 1:
-            A = np.vstack([x, np.ones(len(x))]).T
-            m, c = np.linalg.lstsq(A, y)[0]
-            resid = y - (m * x + c)
-            return resid
-        elif len(x.shape) == 2:
-            A = np.hstack([x, np.ones(len(x)).reshape(-1, 1)])
-            *m, c = np.linalg.lstsq(A, y)[0]
-            resid = y - (x@m + c)
-            return resid
+        m = np.linalg.lstsq(x, y)[0]
+        resid = y - (x@m)
+        return resid
 
     @staticmethod
     def _mad(series):
