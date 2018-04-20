@@ -537,6 +537,7 @@ class Dimensions:
         return temp.correlation, temp.pvalue
 
     @staticmethod
+    def single_series_describe(series, first_level_index, ratio=1):
         new_series = series.describe().loc[["mean", "std"]].rename({"mean": "均值", "std": "标准差"})
         new_series["均值"] *= ratio
         new_series["标准差"] *= np.sqrt(ratio)
