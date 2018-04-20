@@ -695,13 +695,13 @@ class Dimensions:
 
         # 画IC图
         columns_wide = 2
-        fr_cols = len(full_report_data['daily_ic'])
+        fr_cols = len(full_report_data['daily_ic'].columns)
         rows_when_wide = (((fr_cols - 1) // columns_wide) + 1)
         vertical_sections = fr_cols + 3 * rows_when_wide + 2 * fr_cols
+
         gf = plotting.GridFigure(rows=vertical_sections, cols=columns_wide)
         gf.fig.suptitle("Information Coefficient Report\n\n(period length = {:d} days)"
                         "\ndaily IC = rank_corr(period-wise forward return, signal value)".format(self.period))
-
         plotting.plot_ic_ts(full_report_data['daily_ic'], self.period, ax=gf.next_row())
         plotting.plot_ic_hist(full_report_data['daily_ic'], self.period, ax=gf.next_row())
         plotting.plot_monthly_ic_heatmap(full_report_data['monthly_ic'], period=self.period, ax=gf.next_row())
