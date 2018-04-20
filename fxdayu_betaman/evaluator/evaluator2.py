@@ -39,7 +39,7 @@ class Evaluator:
             "winsorize": self._winsorize,
             "barra": self._barra,
             "standard_scale": lambda x: pd.Series(scale(x), index=x.index, name="signal"),
-            "standardize":self._standardize,
+            "standardize": self._standardize,
         }
         self._cap = None
         self._industry_standard = None
@@ -537,8 +537,9 @@ class Dimensions:
         return temp.correlation, temp.pvalue
 
     @staticmethod
-    def single_series_describe(series, first_level_index):
         new_series = series.describe().loc[["mean", "std"]].rename({"mean": "均值", "std": "标准差"})
+        new_series["均值"] *= ratio
+        new_series["标准差"] *= np.sqrt(ratio)
         new_series.loc["均值/标准差"] = new_series["均值"]/new_series["标准差"]
         new_series.index = pd.MultiIndex.from_product([[first_level_index], new_series.index])
         return new_series
@@ -552,9 +553,9 @@ class Dimensions:
         assert len(first_level_index) == 3
         # self.error, self.error2 = df, first_level_index
         to_concated1 = self.single_series_describe(df.iloc[:, 0],
-                                                   first_level_index=first_level_index[0]+first_level_index[1])
+                                                   first_level_index[0]+first_level_index[1], ratio)
         to_concated2 = self.single_series_describe(df.iloc[:, 1],
-                                                   first_level_index=first_level_index[0]+first_level_index[2])
+                                                   first_level_index[0]+first_level_index[2], ratio)
         series = df.iloc[:, 0] - df.iloc[:, 1]
         mean, std = series.mean() * ratio, series.std() * np.sqrt(ratio)
         t, p = ttest_1samp(series, 0)
