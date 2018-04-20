@@ -527,18 +527,29 @@ class Dimensions:
         """
         name_column, p_column = df.columns
         series = pd.Series(name=name_column)
+        series2 = series.copy()
+
+        _df = df[name_column]
+        series["正相关比例"] = (_df > 0).mean()
+        series["负相关比例"] = (_df < 0).mean()
+        series["同向次数占比"] = ((_df * _df.shift(-1)).dropna() > 0).mean()
+        series["切换次数占比"] = ((_df * _df.shift(-1)).dropna() < 0).mean()
+        series["显著比例较高的方向"] = "+" if series["正相关比例"] > series["负相关比例"] else "-"
+        series["abs(正-负)"] = abs((series["正相关比例"] - series["负相关比例"]))
+        series["同向-切换"] = series["同向次数占比"] - series["切换次数占比"]
+
         length = df.shape[0]
-        df = df[df[p_column] <= pvalue_threshold].drop(p_column, axis=1).squeeze(1)
-        ratio = (df.shape[0])/length
-        series["正相关显著比例"] = (df > 0).mean()
-        series["负相关显著比例"] = (df < 0).mean()
-        series["同向显著次数占比"] = ((df * df.shift(-1)).dropna() > 0).mean()
-        series["状态切换次数占比"] = ((df * df.shift(-1)).dropna() < 0).mean()
-        series["显著比例较高的方向"] = "+" if series["正相关显著比例"] > series["负相关显著比例"] else "-"
-        series["abs(正-负)"] = abs((series["正相关显著比例"] - series["负相关显著比例"]))
-        series["同向-切换"] = series["同向显著次数占比"] - series["状态切换次数占比"]
-        series[series.apply(np.isreal)] *= ratio
-        return series
+        df = df[name_column][df[p_column] <= pvalue_threshold]
+        ratio = (df.shape[0]) / length
+        series2["显著:正相关比例"] = (df > 0).mean()
+        series2["显著:负相关比例"] = (df < 0).mean()
+        series2["显著:同向次数占比"] = ((df * df.shift(-1)).dropna() > 0).mean()
+        series2["显著:切换次数占比"] = ((df * df.shift(-1)).dropna() < 0).mean()
+        series2["显著:比例较高的方向"] = "+" if series2["显著:正相关比例"] > series2["显著:负相关比例"] else "-"
+        series2["显著:abs(正-负)"] = abs((series2["显著:正相关比例"] - series2["显著:负相关比例"]))
+        series2["显著:同向-切换"] = series2["显著:同向次数占比"] - series2["显著:切换次数占比"]
+        series2[series2.apply(np.isreal)] *= ratio
+        return series.append(series2)
 
     @staticmethod
     def two_column_rank_ic(ret, factor):
@@ -568,7 +579,7 @@ class Dimensions:
                                                    first_level_index[0]+first_level_index[2], ratio)
         series = df.iloc[:, 0] - df.iloc[:, 1]
         mean, std = series.mean() * ratio, series.std() * np.sqrt(ratio)
-        t, p = ttest_1samp(series, 0)
+        t, p = ttest_1samp(series.dropna(), 0)
         to_concated3 = pd.Series([mean, std, mean/std, t, p],
                                  index=pd.MultiIndex.from_product(
                                  [[first_level_index[0]+first_level_index[1]+"-"+first_level_index[2]],
