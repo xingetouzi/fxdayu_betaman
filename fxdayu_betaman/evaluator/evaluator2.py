@@ -393,14 +393,23 @@ class Dimensions:
         self.full_report_data = None
 
     def get_signal_data(self, n_quantiles=10):
+
+        def stack_td_symbol(df):
+            df = pd.DataFrame(df.stack(dropna=False))  # do not dropna
+            df.index.names = ['trade_date', 'symbol']
+            df.sort_index(axis=0, level=['trade_date', 'symbol'], inplace=True)
+            return df
+
         signal_data = self.signal.copy()
         # 划分 quantile 计算投资组合收益
         try:
-            signal_data["quantile"] = signal_data["signal"].dropna().groupby(level=0).apply(pd.qcut, q=n_quantiles, labels=np.arange(n_quantiles)+1)
+            df_quantile = jutil.to_quantile(signal_data["signal"].unstack(), n_quantiles=n_quantiles)
+            signal_data["quantile"] = stack_td_symbol(df_quantile)
         except ValueError:
-            print("quantile cut do not work")
+            print("quantile cut do not work.")
             signal_data["quantile"] = 1
         signal_data["bins"] = signal_data["signal"].dropna().groupby(level=0).apply(pd.cut, bins=n_quantiles, labels=np.arange(n_quantiles)+1)
+        signal_data = signal_data.astype({'signal': float, 'return': float, 'quantile': int})
         return signal_data
 
     def _result(self, df):
@@ -444,13 +453,13 @@ class Dimensions:
 
         # 划分 quantile 计算投资组合收益
         if isinstance(n_quantiles,int):
-            signal_data = self.get_signal_data(n_quantiles)
+            self.signal_data = self.get_signal_data(n_quantiles)
         elif n_quantiles is None:
             if self.signal_data is None:
                 self.signal_data = self.get_signal_data()
-            signal_data = self.signal_data
         else:
             raise ValueError("Type of n_quantiles must be int.")
+        signal_data = self.signal_data
         # 下面先对因子做处理，可能要改，因为不确定能不能跟前面的整合
         # copy_signal_data = signal_data.copy()
         # copy_signal_data["signal"] = self.signal_for_ic
