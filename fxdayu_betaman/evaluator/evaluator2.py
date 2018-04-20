@@ -496,13 +496,13 @@ class Dimensions:
         df1, weight1 = positive_negative_signal(signal_data[signal_data["signal"] > 0])
         df2, weight2 = positive_negative_signal(signal_data[signal_data["signal"] < 0])
 
-        def top_bottom_signal(df, way="bins"):
-            top = df.groupby(level=0).apply(lambda x: x[x[way] == 5]["return"].mean()).rename("top")
+        def top_bottom_signal(df, way="bins", n=5):
+            top = df.groupby(level=0).apply(lambda x: x[x[way] == n]["return"].mean()).rename("top")
             bottom = df.groupby(level=0).apply(lambda x: x[x[way] == 1]["return"].mean()).rename("bottom")
             return pd.concat([top, bottom], axis=1)
 
-        q_way = top_bottom_signal(signal_data, way="quantile") if "quantile" in signal_data.columns else None
-        b_way = top_bottom_signal(signal_data)
+        q_way = top_bottom_signal(signal_data, way="quantile", n=signal_data['quantile'].max()) if "quantile" in signal_data.columns else None
+        b_way = top_bottom_signal(signal_data, way="bins", n=signal_data['bins'].max())
 
         series1 = self.pairwise_describe_and_mean_difference(df1, ["正signal: ", "加权", "简单"])
         series1 = series1.append(pd.Series(weight1, index=pd.MultiIndex.from_tuples([("正signal", "signal符号")])))
