@@ -99,7 +99,7 @@ class Evaluator:
 
     def _a_share_default_rule(self):
         trade_status = self.dv.get_ts('trade_status')
-        mask_sus = trade_status.fillna("") == u'停牌'
+        mask_sus = trade_status!=1 # 不能交易的
         # 涨停
         up_limit = self.dv.add_formula('up_limit', '(close_adj - Delay(close_adj, 1)) / Delay(close_adj, 1) > 0.095',
                                        is_quarterly=False)
